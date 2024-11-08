@@ -13,7 +13,7 @@ This is the official Lines Police CAD bot for Discord integration.
 1. Follow the [README.md](https://github.com/Linesmerrill/police-cad/blob/main/README.md) to setup an instance of the police-cad project. This will also include the setup of MongoDB that the bot will access.
 2. Clone the repository and change into project directory.
 ```
-$ git clone https://github.com/SowinskiBraeden/police-cad-bot.git && cd police-cad-bot
+$ git clone https://github.com/Lines-Police-CAD/police-cad-bot.git && cd police-cad-bot
 ```
 3. Run `npm install` to install dependencies.
 4. Duplicate `.env.example` and rename to `.env`. Edit to your configurations

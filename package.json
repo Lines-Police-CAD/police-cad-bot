@@ -5,16 +5,22 @@
   "main": "LPS.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon dev.js"
+    "dev": "node dev.js",
+    "dev-active": "nodemon dev.js"
   },
   "author": "Braeden Sowinski",
   "license": "ISC",
   "dependencies": {
-    "discord.js": "^12.5.3",
-    "express": "^4.17.1",
-    "mongodb": "^3.6.8",
-    "nodemon": "^2.0.14",
-    "randomstring": "^1.2.1",
-    "socket.io-client": "^4.1.2"
+    "@discordjs/rest": "^1.7.0",
+    "colors": "^1.4.0",
+    "concat-stream": "^2.0.0",
+    "discord-bitfield-calculator": "^1.0.0",
+    "discord.js": "^14.9.0",
+    "dotenv": "^16.0.3",
+    "form-data": "^4.0.0",
+    "moment-duration-format": "^2.3.2",
+    "mongodb": "^4.12.1",
+    "socket.io-client": "^4.1.2",
+    "winston": "^3.8.1"
   }
 }

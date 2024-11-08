@@ -1,4 +1,8 @@
-const Bot = require('./LPS').Bot;
+const { ShardingManager } = require('discord.js');
+const config = require('./config/config');
 
-let client = new Bot('PRODUCTION', process.env.token, './config', process.env.mongoURI, process.env.dbo);
-client.main()
+const manager = new ShardingManager('./bot.js', { token: config.Token });
+
+manager.on('shardCreate', shard => console.log(`Launched shard ${shard.id}`));
+
+manager.spawn();

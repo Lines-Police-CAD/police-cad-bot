@@ -35,6 +35,21 @@ class LinesPoliceCadBot extends Client {
         
         const command = interaction.data.name.toLowerCase();
         const args = interaction.data.options;
+
+        // Remove configured channels that have been deleted in discord
+        if (GuildDB.customChannelStatus) {
+          for (let i = 0; i < GuildDB.allowedChannels.length; i++) {
+            const guild = client.guilds.cache.get(GuildDB.serverID);
+            const channel = guild.channels.cache.find(channel => channel.id == GuildDB.allowedChannels[i]);
+            if (!channel) {
+              await client.dbo.collection("guilds").updateOne({"server.serverID": GuildDB.serverID}, {
+                $pull: { "server.allowedChannels": channel },
+              }, (err, _) => {
+                if (err) throw (err);
+              });
+            }
+          }
+        }
         
         client.log(`Interaction - ${command}`)
 

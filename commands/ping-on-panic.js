@@ -1,5 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
+const bitfieldCalculator = require('discord-bitfield-calculator');
 
 module.exports = {
   name: "ping-on-panic",
@@ -56,6 +57,9 @@ module.exports = {
         let guild = await client.dbo.collection("prefixes").findOne({ "server.serverID": interaction.guild.id }).then(guild => guild);
         return interaction.send({ content: `Current Ping on Panic Status: \` ${guild.server.pingOnPanic} \`` });  
       } else if (args[0].name == "toggle") {
+        const permissions = bitfieldCalculator.permissions(interaction.member.permissions);
+        if (!permissions.includes("MANAGE_GUILD")) return interaction.send({ content: 'You don\'t have the permissions to use this command.' });
+
         if (!args[0].options[0].value) {
           // disable ping on panic and remove ping role
           client.dbo.collection("prefixes").updateOne({"server.serverID":interaction.guild.id},{$set:{"server.pingOnPanic":false,"server.pingRole":null}},function(err, res) {

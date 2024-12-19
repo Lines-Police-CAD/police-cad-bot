@@ -1,8 +1,9 @@
 const { EmbedBuilder } = require('discord.js');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
+const bitfieldCalculator = require('discord-bitfield-calculator');
 
 module.exports = {
-  name: "role",
+  name: "roles",
   description: "Manage allowed roles",
   usage: "",
   permissions: {

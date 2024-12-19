@@ -1,6 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const io = require('socket.io-client');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
+const ObjectId = require('mongodb').ObjectId;
 
 module.exports = {
   name: "community",

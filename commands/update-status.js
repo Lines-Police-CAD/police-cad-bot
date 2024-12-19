@@ -1,5 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 const io = require('socket.io-client');
+const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 
 module.exports = {
   name: "updatestatus",
@@ -14,7 +15,7 @@ module.exports = {
       name: "status",
       description: "New Status Value",
       value: "status",
-      type: 3,
+      type: CommandOptions.String,
       required: true,
       choices: [
         { name: '10-8 (In Service)', value: '10-8', }, { name: '10-7 (Out of Service)', value: '10-7', }, { name: '10-6 (Busy)', value: '10-6', },

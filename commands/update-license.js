@@ -1,5 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const io = require('socket.io-client');
+const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 
 module.exports = {
   name: "updatelicense",
@@ -14,21 +15,21 @@ module.exports = {
       name: "firstname",
       description: "Civilian's First Name",
       value: "firstname",
-      type: 3,
+      type: CommandOptions.String,
       required: true,
     },
     {
       name: "lastname",
       description: "Civilian's Last Name",
       value: "lastname",
-      type: 3,
+      type: CommandOptions.String,
       required: true,
     },
     {
       name: "dob",
       description: "Civilian's DOB (yyyy-mm-dd)",
       value: "dob",
-      type: 3,
+      type: CommandOptions.String,
       required: true,
     },
   ],  

@@ -3,7 +3,7 @@ const io = require('socket.io-client');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 
 module.exports = {
-  name: "updatelicense",
+  name: "update-license",
   description: "Update Drivers License Status",
   usage: "[firstName] [lastName] [DOB]",
   permissions: {

@@ -190,7 +190,7 @@ class LinesPoliceCadBot extends Client {
   sendInternalError(Interaction, Error) {
     this.error(Error);
     const embed = new EmbedBuilder()
-      .setDescription(`**Internal Error:**\nUh Oh D:  Its not you, its me.\nThis command has crashed\nCOntact the Developers`)
+      .setDescription(`**Internal Error:**\nUh Oh D:  Its not you, its me.\nThis command has crashed\nContact the Developers`)
       .setColor(this.config.Colors.Red)
 
     Interaction.send({ embeds: [embed] });

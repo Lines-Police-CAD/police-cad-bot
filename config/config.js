@@ -2,7 +2,7 @@ require('dotenv').config()
 
 module.exports = {
 	Dev: "PRODUCTION",
-	Version: "4.0.3",
+	Version: "4.0.4",
   Admins: ["362791661274660874"], // Admins of the bot
 	DefaultPrefix: "?",
 	socket: "https://www.linespolice-cad.com/",

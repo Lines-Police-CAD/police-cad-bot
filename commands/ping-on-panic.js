@@ -62,19 +62,19 @@ module.exports = {
 
         if (!args[0].options[0].value) {
           // disable ping on panic and remove ping role
-          client.dbo.collection("prefixes").updateOne({"server.serverID":interaction.guild.id},{$set:{"server.pingOnPanic":false,"server.pingRole":null}},function(err, res) {
+          await client.dbo.collection("prefixes").updateOne({"server.serverID":interaction.guild.id},{$set:{"server.pingOnPanic":false,"server.pingRole":null}},function(err, res) {
             if (err) throw err;
             return interaction.send({ content: `Successfully disabled ping role on panic.` });
           });
-        } else if (args[0].value) {
-          let roleid = args[1].value;
+        } else if (args[0].options[0].value) {
+          let roleid = args[0].options[1].value;
           let role = interaction.guild.roles.cache.find(x => x.id == roleid);
           if (role == undefined) {
-            return interaction.send({ content: `Uh Oh! The role <@&${args[1].value}> connot be found.` });
+            return interaction.send({ content: `Uh Oh! The role <@&${roleid}> connot be found.` });
           } else {
-            client.dbo.collection("prefixes").updateOne({"server.serverID":interaction.guild.id},{$set:{"server.pingRole":roleid,"server.pingOnPanic":true}},function(err, res) {
+            await client.dbo.collection("prefixes").updateOne({"server.serverID":interaction.guild.id},{$set:{"server.pingRole":roleid,"server.pingOnPanic":true}},function(err, res) {
               if (err) throw err;
-              return interaction.send({ content: `Successfully set <@&${args[1].value}> to be pinged on panic.` });
+              return interaction.send({ content: `Successfully set <@&${roleid}> to be pinged on panic.` });
             });
           }
         }

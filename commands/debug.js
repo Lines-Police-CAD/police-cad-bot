@@ -17,6 +17,11 @@ module.exports = {
       value: "command",
       type: 3,
       required: true,
+      choices: [
+        { name: 'guild', value: 'guild', },
+        { name: 'interaction', value: 'interaction', },
+        { name: 'pingserver', value: 'pingserver', },
+      ],
     },
     {
       name: "consoleoutput",
@@ -35,28 +40,26 @@ module.exports = {
      * @param {*} param3
     */
     run: async (client, interaction, args, { GuildDB }) => {
-      if (!client.config.Admins.includes(interaction.member.user.id)) return;
+      if (!client.config.Admins.includes(interaction.member.user.id)) return interaction.send({ content: "Only bot admins can use this command.", flags: (1 << 6) });
 
-      if (args.length==0) return message.channel.send({ content: 'Debug Error: Provide a debug command' });
-      if (!client.exists(args[0].value)) return interaction.send({ content: 'Debug Error: Provide a valid debug command' });
+      if (!client.exists(args[0].value)) return interaction.send({ content: 'Debug Error: Provide a valid debug command', flags: (1 << 6) });
 
       let debugConsole = args[1].value;
-
       let command = args[0].value.toLowerCase();
 
-      if (command == 'server' || args[0] == 'guild') {
-        if (debugConsole) client.log("Debug: Guild >> ");console.debug(GuildDB);
-        return interaction.send({ content: "Debug: guild >> read log output" })
-
+      if (command == 'guild') {
+        if (debugConsole) client.log("Debug: Guild >> ");
+        console.debug(GuildDB);
+        return interaction.send({ content: "Debug: guild >> read log output", flags: (1 << 6) })
       } else if (command == "interaction") {
         if (debugConsole) {
           client.log("Debug: interaction >> ");
           console.debug(interaction);
         }
-        return interaction.send({ content: "Debug: interaction >> read log output" });
+        return interaction.send({ content: "Debug: interaction >> read log output", flags: (1 << 6) });
 
       } else if (command == "message") {
-        return interaction.send({ content: `Use command with prefix to debug \`message\`` });
+        return interaction.send({ content: `Use command with prefix to debug \`message\``, flags: (1 << 6) });
         
       } else if (command == "pingserver") {
         const socket = io.connect(client.config.socket);
@@ -64,16 +67,15 @@ module.exports = {
         socket.on('botpong', (data) => {
           if (debugConsole) client.log('Debug: Socket responded')
           socket.disconnect();
-          return interaction.send({ content: `Debug: Socket responded` })
+          return interaction.send({ content: `Debug: Socket responded`, flags: (1 << 6) })
         });
       
       } else if (command == "apicheck") {
         // TODO: Make axios call to api and get api health
-        return interaction.send({ content: 'Debug Notice: \`apicheck\` is currently unavailable' }); 
+        return interaction.send({ content: 'Debug Notice: \`apicheck\` is currently unavailable', flags: (1 << 6) }); 
       
       } else {
-        return interaction.send({ content: 'Debug Error: Provide a valid debug command' });
-      
+        return interaction.send({ content: 'Debug Error: Provide a valid debug command', flags: (1 << 6) });
       }
     },
   },

@@ -6,3 +6,5 @@ logs/*
 
 # environment variables
 .env
+
+package-lock.json

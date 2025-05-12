@@ -83,6 +83,7 @@ module.exports = {
 
       const user = await client.dbo.collection("users").findOne({"user.discord.id":interaction.member.user.id}).then(user => user);
       if (!user) return interaction.send({ content: `You are not logged in.` });
+      if (!user.user.lastAccessedCommunity || !user.user.lastAccessedCommunity.communityID) return interaction.send({ content: `You are not in an active community.` });
       let data;
 
       if (args[0].name == "firearm") {
@@ -90,7 +91,7 @@ module.exports = {
           user: user,
           query: {
             serialNumber: args[0].options[0].value,
-            activeCommunityID: user.user.activeCommunity
+            activeCommunityID: user.user.lastAccessedCommunity.communityID
           }
         }
         const socket = io.connect(client.config.socket);
@@ -128,7 +129,7 @@ module.exports = {
           user: user,
           query: {
             plateNumber: args[0].options[0].value,
-            activeCommunityID: user.user.activeCommunity
+            activeCommunityID: user.user.lastAccessedCommunity.communityID
           }
         }
         const socket = io.connect(client.config.socket);
@@ -140,20 +141,22 @@ module.exports = {
               return interaction.send({ content: `Plate Number \`${args[0].options[0].value}\` not found.` });
             }
 
+            let plateResults = [];
             for (let i = 0; i < results.vehicles.length; i++) {
+              if (results.vehicles[i].vehicle.activeCommunityID != user.user.lastAccessedCommunity.communityID) continue;
               let plateResult = new EmbedBuilder()
-              .setColor('#0099ff')
-              .setTitle(`**${results.vehicles[i].vehicle.plate} | ${results.vehicles[i]._id}**`)
-              .setURL('https://discord.gg/jgUW656v2t')
-              .setAuthor({ name: 'LPS Website Support', iconURL: client.config.IconURL, url: 'https://discord.gg/jgUW656v2t' })
-              .setDescription('Plate Search Results')
-              .addFields(
-                { name: `**Plate #**`, value: `\`${results.vehicles[i].vehicle.plate}\``, inline: true },
-                { name: `**Vin #**`, value: `\`${results.vehicles[i].vehicle.vin}\``, inline: true },
-                { name: `**Model**`, value: `\`${results.vehicles[i].vehicle.model}\``, inline: true },
-                { name: `**Color**`, value: `\`${results.vehicles[i].vehicle.color}\``, inline: true },
-                { name: `**Owner**`, value: `\`${results.vehicles[i].vehicle.registeredOwner}\``, inline: true },
-              )
+                .setColor('#0099ff')
+                .setTitle(`**${results.vehicles[i].vehicle.plate} | ${results.vehicles[i]._id}**`)
+                .setURL('https://discord.gg/jgUW656v2t')
+                .setAuthor({ name: 'LPS Website Support', iconURL: client.config.IconURL, url: 'https://discord.gg/jgUW656v2t' })
+                .setDescription('Plate Search Results')
+                .addFields(
+                  { name: `**Plate #**`, value: `\`${results.vehicles[i].vehicle.plate}\``, inline: true },
+                  { name: `**Vin #**`, value: `\`${results.vehicles[i].vehicle.vin}\``, inline: true },
+                  { name: `**Model**`, value: `\`${results.vehicles[i].vehicle.model}\``, inline: true },
+                  { name: `**Color**`, value: `\`${results.vehicles[i].vehicle.color}\``, inline: true },
+                  { name: `**Owner**`, value: `\`${results.vehicles[i].vehicle.registeredOwner}\``, inline: true },
+                )
               // Other details
               let validRegistration = results.vehicles[i].vehicle.validRegistration;
               let validInsurance = results.vehicles[i].vehicle.validInsurance;
@@ -164,8 +167,9 @@ module.exports = {
               if (validInsurance=='2') plateResult.addFields({ name: `**Insurance**`, value: `\`InValid\``, inline: true });
               if (stolen=='1') plateResult.addFields({ name: `**Stolen**`, value: `\`No\``, inline: true });
               if (stolen=='2') plateResult.addFields({ name: `**Stolen**`, value: `\`Yes\``, inline: true });
-              return interaction.send({ embeds: [plateResult] });
+              plateResults.push(plateResult);
             }
+            return interaction.send({ embeds: plateResults });
           }
           socket.disconnect();
         });
@@ -177,7 +181,7 @@ module.exports = {
             firstName: args[0].options[0].value,
             lastName: args[0].options[1].value,
             dateOfBirth: args[0].options[2].value,
-            activeCommunityID: user.user.activeCommunity
+            activeCommunityID: user.user.lastAccessedCommunity.communityID
           }
         }
   

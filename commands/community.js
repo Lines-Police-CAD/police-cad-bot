@@ -12,25 +12,26 @@ module.exports = {
     member: [],
   },
   options: [
-    {
-      name: "join",
-      description: "Join a community",
-      value: "join",
-      type: CommandOptions.SubCommand,
-      options: [{
-        name: "code",
-        description: "Join community with community code",
-        value: "code",
-        type: CommandOptions.String,
-        required: true,
-      }],
-    },
-    {
-      name: "leave",
-      description: "Leave your active community",
-      value: "leave",
-      type: CommandOptions.SubCommand,
-    },
+    // DEPRECATED
+    // {
+    //   name: "join",
+    //   description: "Join a community",
+    //   value: "join",
+    //   type: CommandOptions.SubCommand,
+    //   options: [{
+    //     name: "code",
+    //     description: "Join community with community code",
+    //     value: "code",
+    //     type: CommandOptions.String,
+    //     required: true,
+    //   }],
+    // },
+    // {
+    //   name: "leave",
+    //   description: "Leave your active community",
+    //   value: "leave",
+    //   type: CommandOptions.SubCommand,
+    // },
     {
       name: "view",
       description: "Check your active community",
@@ -84,10 +85,10 @@ module.exports = {
         });
 
       } else if (args[0].name == "view") {
-        if (user.user.activeCommunity == null)
+        if (!user.user.lastAccessedCommunity || !user.user.lastAccessedCommunity.communityID)
           return interaction.send({ content: `You are not in a community.` });
         
-        let community = await client.dbo.collection("communities").findOne({ _id: ObjectId(user.user.activeCommunity) }).then(community => community);
+        let community = await client.dbo.collection("communities").findOne({ _id: ObjectId(user.user.lastAccessedCommunity.communityID) }).then(community => community);
         if (!community)
           return interaction.send({ content: `Community not found.` });
         

@@ -43,7 +43,7 @@ module.exports = {
 
       let user = await client.dbo.collection("users").findOne({"user.discord.id":interaction.member.user.id}).then(user => user);
       if (!user) return interaction.send({ content: `You are not logged in <@${interaction.member.user.id}>` });
-      if (user.user.activeCommunity==null) return interaction.send({ content: `You must join a community to use this command.` });
+      if (!user.user.lastAccessedCommunity || !user.user.lastAccessedCommunity.communityID) return interaction.send({ content: `You must join a community to use this command.` });
       let onDuty=null;
       let updateDuty=false;
       let status = args[0].value;

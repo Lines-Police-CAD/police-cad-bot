@@ -26,7 +26,7 @@ module.exports = {
       
       const user = await client.dbo.collection("users").findOne({"user.discord.id": interaction.member.user.id}).then(user => user);
       if (!user) return interaction.send({ content: `You are not logged in. Go to https://linespolice-cad.com/ to login, and connect your Discord account.`, flags: (1 << 6) });
-      if (user.user.activeCommunity == null) return interaction.send({ content: `You must join a community to use this command.`, flags: (1 << 6) });
+      if (!targetUser.user.lastAccessedCommunity || !targetUser.user.lastAccessedCommunity.communityID) return interaction.send({ content: `You must join a community to use this command.`, flags: (1 << 6) });
  
       // If panic is enabled, disable panic
       if (user.user.dispatchStatus == 'Panic') {
@@ -34,7 +34,7 @@ module.exports = {
         const socket = io.connect(client.config.socket);
         socket.emit('clear_panic', {
           userID: user._id,
-          communityID: user.user.activeCommunity
+          communityID: user.user.lastAccessedCommunity.communityID
         });
 
         let myUpdateReq = {
@@ -58,13 +58,13 @@ module.exports = {
       // If panic is disabled, enable panic
       } else {
         
-        if (user.user.activeCommunity == null) return interaction.send({ content: `You must join a community to use this command.`, flags: (1 << 6) });
+        if (!user.user.lastAccessedCommunity || !user.user.lastAccessedCommunity.communityID) return interaction.send({ content: `You must join a community to use this command.`, flags: (1 << 6) });
         client.forceUpdateStatus('Panic', user);
 
         let req = {
           userID: user._id,
           userUsername: user.user.username,
-          activeCommunity: user.user.activeCommunity
+          activeCommunity: user.user.lastAccessedCommunity.communityID
         }
 
         const socket = io.connect(client.config.socket);      

@@ -37,7 +37,7 @@ module.exports = {
       if (!user)
         return interaction.send({ content: `You are not logged in.` });
       
-      if (user.user.activeCommunity == null)
+      if (!user.user.lastAccessedCommunity || !user.user.lastAccessedCommunity.communityID)
         return interaction.send({ content: `You must join a community to use this command.` });
       
       if (!client.exists(args)) {
@@ -51,7 +51,7 @@ module.exports = {
         if (!targetUser)
           return interaction.send({ content: `Cannot find **${args[0].value}** <@${interaction.member.user.id}>` });
  
-        if (targetUser.user.activeCommunity!=user.user.activeCommunity)
+        if (!targetUser.user.lastAccessedCommunity.communityID != user.user.lastAccessedCommunity.communityID)
           return interaction.send({ content: `You are not in the same community as \`${User.tag}\` <@${interaction.member.user.id}>` });
  
         return interaction.send({ content: `<@${interaction.member.user.id}>, \`${User.tag}'s\` status: \`${targetUser.user.dispatchStatus}\` | Set by: \`${targetUser.user.dispatchStatusSetBy}\`` });

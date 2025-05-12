@@ -58,7 +58,7 @@ module.exports = {
           firstName: args[0].value,
           lastName: args[1].value,
           dateOfBirth: args[2].value,
-          activeCommunityID: user.user.activeCommunity
+          activeCommunityID: user.user.lastAccessedCommunity.communityID
         }
       }
       

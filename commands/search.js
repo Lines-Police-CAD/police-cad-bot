@@ -43,22 +43,15 @@ module.exports = {
       value: "name",
       type: CommandOptions.SubCommand,
       options: [{
-        name: "firstname",
-        description: "Civilian's First Name",
-        value: "firstname",
-        type: CommandOptions.String,
-        required: true,
-      },
-      {
-        name: "lastname",
-        description: "Civilian's Last Name",
-        value: "lastname",
+        name: "full_name",
+        description: "Civilian's Full Name",
+        value: "name",
         type: CommandOptions.String,
         required: true,
       },
       {
         name: "dob",
-        description: "Civilian's DOB (yyyy-mm-dd)",
+        description: "Civilian's DOB (dd/mm/yyyy)",
         value: "dob",
         type: CommandOptions.String,
         required: true,
@@ -175,82 +168,70 @@ module.exports = {
         });
 
       } else if (args[0].name == "name") {
-        data = {
-          user: user,
-          query: {
-            firstName: args[0].options[0].value,
-            lastName: args[0].options[1].value,
-            dateOfBirth: args[0].options[2].value,
-            activeCommunityID: user.user.lastAccessedCommunity.communityID
-          }
-        }
-  
-        const socket = io.connect(client.config.socket);
-        socket.emit("bot_name_search", data);
-        socket.on("bot_name_search_results", results => {
-  
-          if (results.user._id==user._id) {
-            if (results.civilians.length == 0) {
-              return interaction.send({ content: `Name \`${args[0].options[0].value} ${args[0].options[1].value}\` not found.` });
-            }
-  
-            for (let i = 0; i < results.civilians.length; i++) {
-              // Get Drivers Licence Status
-              let licenceStatus;
-              if (results.civilians[i].civilian.licenseStatus == 1) licenceStatus = 'Valid';
-              if (results.civilians[i].civilian.licenceStatus == 2) licenceStatus = 'Revoked';
-              if (results.civilians[i].civilian.licenceStatus == 3) licenceStatus = 'None';
-              // Get Firearm Licence Status
-              let firearmLicence = results.civilians[i].civilian.firearmLicense;
-              if (firearmLicence == undefined || firearmLicence == null) firearmLicence = 'None';
-              if (firearmLicence == '2') firearmLicence = 'Valid';
-              if (firearmLicence == '3') firearmLicence = 'Revoked';
-              let nameResult = new EmbedBuilder()
-              .setColor('#0099ff')
-              .setTitle(`**${results.civilians[i].civilian.firstName} ${results.civilians[i].civilian.lastName} | ${results.civilians[i]._id}**`)
-              .setURL('https://discord.gg/jgUW656v2t')
-              .setAuthor({ name: 'LPS Website Support', iconURL: client.config.IconURL, url: 'https://discord.gg/jgUW656v2t' })
-              .setDescription('Name Search Results')
-              .addFields(
-                { name: `**First Name**`, value: `\`${results.civilians[i].civilian.firstName}\``, inline: true },
-                { name: `**Last Name**`, value: `\`${results.civilians[i].civilian.lastName}\``, inline: true },
-                { name: `**DOB**`, value: `\`${results.civilians[i].civilian.birthday}\``, inline: true },
-                { name: `**Drivers License**`, value: `\`${licenceStatus}\``, inline: true },
-                { name: `**Firearm Licence**`, value: `\`${firearmLicence}\``, inline: true },
-                { name: `**Gender**`, value: `\`${results.civilians[i].civilian.gender}\``, inline: true }
-              )
-              // Check Other details
-              let address = results.civilians[i].civilian.address;
-              let occupation = results.civilians[i].civilian.occupation;
-              let height = results.civilians[i].civilian.height;
-              let weight = results.civilians[i].civilian.weight;
-              let eyeColor = results.civilians[i].civilian.eyeColor;
-              let hairColor = results.civilians[i].civilian.hairColor;
-              if (address != null && address != undefined && address != '') nameResult.addFields({ name: `**Address**`, value: `\`${address}\``, inline: true });
-              if (occupation != null && occupation != undefined && occupation != '') nameResult.addFields({ name: `**Occupation**`, value: `\`${occupation}\``, inline: true });
-              if (height!=null&&height!=undefined&&height!="NaN"&&height!='') {
-                if (results.civilians[i].civilian.heightClassification=='imperial') {
-                  let ft = Math.floor(height/12);
-                  let inch = height%12;
-                  nameResult.addFields({ name: '**Height**', value: `\`${ft}'${inch}"\``, inline: true });
-                } else {
-                  nameResult.addFields({ name: '**Height**', value: `\`${height}cm\``, inline: true });
-                }
-              }
-              if (weight!=null&&weight!=undefined&&weight!='') {
-                let units = results.civilians[i].civilian.weightClassification=='imperial' ? 'lbs.' : 'kgs.';
-                nameResult.addFields({ name: '**Weight**', value: `\`${weight}${units}\``, inline: true });
-              }
-              if (eyeColor!=null&&eyeColor!=undefined&&eyeColor!='') nameResult.addFields({name:'**Eye Color**',value:`\`${eyeColor}\``,inline:true});
-              if (hairColor!=null&&hairColor!=undefined&&hairColor!='') nameResult.addFields({name:'**Hair Color**',value:`\`${hairColor}\``,inline:true});
-              nameResult.addFields({name:'**Organ Donor**',value:`\`${results.civilians[i].civilian.organDonor}\``,inline:true});
-              nameResult.addFields({name:'**Veteran**',value:`\`${results.civilians[i].civilian.veteran}\``,inline:true});
-              interaction.send({ embeds: [nameResult] });
-            }
-          }
-          socket.disconnect();
-        });
+        let query = {
+          "civilian.name": `${args[0].options[0].value}`,
+          "civilian.birthday": args[0].options[1].value,
+          "civilian.activeCommunityID": user.user.lastAccessedCommunity.communityID
+        };
 
+        client.dbo.collection("civilians").findOne(query).then((results) => {
+          
+          if (!results) {
+            return interaction.send({ content: `Name \`${args[0].options[0].value}\` not found.` });
+          }
+          
+          // Get Drivers Licence Status
+          let licenceStatus;
+          if (results.civilian.licenseStatus == 1) licenceStatus = 'Valid';
+          if (results.civilian.licenceStatus == 2) licenceStatus = 'Revoked';
+          if (results.civilian.licenceStatus == 3) licenceStatus = 'None';
+          if (!results.civilian.licenceStatus) licenceStatus = "None";
+          // Get Firearm Licence Status
+          let firearmLicence = results.civilian.firearmLicense;
+          if (!firearmLicence) firearmLicence = 'None';
+          if (firearmLicence == '2') firearmLicence = 'Valid';
+          if (firearmLicence == '3') firearmLicence = 'Revoked';
+          let nameResult = new EmbedBuilder()
+          .setColor('#0099ff')
+          .setTitle(`**${results.civilian.name} | ${results._id}**`)
+          .setURL('https://discord.gg/jgUW656v2t')
+          .setAuthor({ name: 'LPS Website Support', iconURL: client.config.IconURL, url: 'https://discord.gg/jgUW656v2t' })
+          .setDescription('Name Search Results')
+          .addFields(
+            { name: `**Name**`, value: `\`${results.civilian.name}\``, inline: true },
+            { name: `**DOB**`, value: `\`${results.civilian.birthday}\``, inline: true },
+            { name: `**Drivers License**`, value: `\`${licenceStatus}\``, inline: true },
+            { name: `**Firearm Licence**`, value: `\`${firearmLicence}\``, inline: true },
+            { name: `**Gender**`, value: `\`${results.civilian.gender}\``, inline: true }
+          )
+          // Check Other details
+          let address = results.civilian.address;
+          let occupation = results.civilian.occupation;
+          let height = results.civilian.height;
+          let weight = results.civilian.weight;
+          let eyeColor = results.civilian.eyeColor;
+          let hairColor = results.civilian.hairColor;
+          if (address != null && address != undefined && address != '') nameResult.addFields({ name: `**Address**`, value: `\`${address}\``, inline: true });
+          if (occupation != null && occupation != undefined && occupation != '') nameResult.addFields({ name: `**Occupation**`, value: `\`${occupation}\``, inline: true });
+          if (height!=null&&height!=undefined&&height!="NaN"&&height!='') {
+            if (results.civilian.heightClassification=='imperial') {
+              let ft = Math.floor(height/12);
+              let inch = height%12;
+              nameResult.addFields({ name: '**Height**', value: `\`${ft}'${inch}"\``, inline: true });
+            } else {
+              nameResult.addFields({ name: '**Height**', value: `\`${height}cm\``, inline: true });
+            }
+          }
+          if (weight!=null&&weight!=undefined&&weight!='') {
+            let units = results.civilian.weightClassification=='imperial' ? 'lbs.' : 'kgs.';
+            nameResult.addFields({ name: '**Weight**', value: `\`${weight}${units}\``, inline: true });
+          }
+          if (eyeColor!=null&&eyeColor!=undefined&&eyeColor!='') nameResult.addFields({name:'**Eye Color**',value:`\`${eyeColor}\``,inline:true});
+          if (hairColor!=null&&hairColor!=undefined&&hairColor!='') nameResult.addFields({name:'**Hair Color**',value:`\`${hairColor}\``,inline:true});
+          nameResult.addFields({name:'**Organ Donor**',value:`\`${results.civilian.organDonor}\``,inline:true});
+          nameResult.addFields({name:'**Veteran**',value:`\`${results.civilian.veteran}\``,inline:true});
+          interaction.send({ embeds: [nameResult] });
+        });
       }
     },
   },

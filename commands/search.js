@@ -78,45 +78,43 @@ module.exports = {
       const user = await client.dbo.collection("users").findOne({"user.discord.id":interaction.member.user.id}).then(user => user);
       if (!user) return interaction.send({ content: `You are not logged in.` });
       if (!user.user.lastAccessedCommunity || !user.user.lastAccessedCommunity.communityID) return interaction.send({ content: `You are not in an active community.` });
-      let data;
 
       if (args[0].name == "firearm") {
-        data = {
-          user: user,
-          query: {
-            serialNumber: args[0].options[0].value,
-            activeCommunityID: user.user.lastAccessedCommunity.communityID
+        let query = {
+          "firearm.serialNumber": args[0].options[0].value,
+          "firearm.activeCommunityID": user.user.lastAccessedCommunity.communityID
+        };
+        
+        client.dbo.collection("firearms").findOne(query).then(async (results) => {
+          
+          if (!results) {
+            return interaction.send({ content: `No Firearms found <@${interaction.member.user.id}>` });
           }
-        }
-        const socket = io.connect(client.config.socket);
-        socket.emit('bot_firearm_search', data);
-        socket.on('bot_firearm_search_results', results => {
-          if (results.user._id==user._id) {
-            if (results.firearms.length==0) {
-              return interaction.send({ content: `No Firearms found <@${interaction.member.user.id}>` });
-            }
-  
-            for (let i = 0; i < results.firearms.length; i++) {
-              let firearmResult = new EmbedBuilder()
-              .setColor('#0099ff')
-              .setTitle(`**${results.firearms[i].firearm.serialNumber} | ${results.firearms[i]._id}**`)
-              .setURL('https://discord.gg/jgUW656v2t')
-              .setAuthor({ name: 'LPS Website Support', iconURL: client.config.IconURL, url: 'https://discord.gg/jgUW656v2t' })
-              .setDescription('Firearm Search Results')
-              .addFields(
-                { name: `**Serial Number**`, value: `\`${results.firearms[i].firearm.serialNumber}\``, inline: true },
-                { name: `**Type**`, value: `\`${results.firearms[i].firearm.weaponType}\``, inline: true },
-                { name: `**Owner**`, value: `\`${results.firearms[i].firearm.registeredOwner}\``, inline: true },
-              )
-              // Other details
-              let isStolen = results.firearms[i].firearm.isStolen;
-              if (isStolen=="false"||isStolen==false) firearmResult.addFields({name:`**Stolen**`,value:'\`No\`',inline: true});
-              if (isStolen=="true"||isStolen==true) firearmResult.addFields({name:`**Stolen**`,value:'\`Yes\`',inline: true});
-              interaction.send({ embeds: [firearmResult] });
-            }
-          }
-          socket.disconnect();
+
+          let civilian = null;
+          if (results.firearm.linkedCivilianID != "") civilian = await client.dbo.collection("civilians").findOne({ _id: new ObjectId(results.firearm.linkedCivilianID) }).then((civ) => civ);
+          let owner = civilian ? civilian.civilian.name : "N/A";
+
+          let firearmResult = new EmbedBuilder()
+            .setColor('#0099ff')
+            .setTitle(`**${results.firearm.serialNumber} | ${results._id}**`)
+            .setURL('https://discord.gg/jgUW656v2t')
+            .setAuthor({ name: 'LPS Website Support', iconURL: client.config.IconURL, url: 'https://discord.gg/jgUW656v2t' })
+            .setDescription('Firearm Search Results')
+            .addFields(
+              { name: `**Serial Number**`, value: `\`${results.firearm.serialNumber}\``, inline: true },
+              { name: `**Name**`, value: `\`${results.firearm.name}\``, inline: true },
+              { name: `**Type**`, value: `\`${results.firearm.weaponType}\``, inline: true },
+              { name: `**Owner**`, value: `\`${owner}\``, inline: true },
+            )
+
+          // Other details
+          let isStolen = results.firearm.isStolen;
+          if (isStolen=="false"||isStolen==false) firearmResult.addFields({name:`**Stolen**`,value:'\`No\`',inline: true});
+          if (isStolen=="true"||isStolen==true) firearmResult.addFields({name:`**Stolen**`,value:'\`Yes\`',inline: true});
+          interaction.send({ embeds: [firearmResult] });
         });
+
 
       } else if (args[0].name == "plate") {
         let query = {

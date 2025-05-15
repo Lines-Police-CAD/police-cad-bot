@@ -1,6 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const io = require('socket.io-client');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
+const ObjectId = require("mongodb").ObjectId;
 
 module.exports = {
   name: "search",
@@ -118,53 +119,46 @@ module.exports = {
         });
 
       } else if (args[0].name == "plate") {
-        data = {
-          user: user,
-          query: {
-            plateNumber: args[0].options[0].value,
-            activeCommunityID: user.user.lastAccessedCommunity.communityID
-          }
-        }
-        const socket = io.connect(client.config.socket);
-        socket.emit('bot_plate_search', data);
-        socket.on('bot_plate_search_results', results => {
-          
-          if (results.user._id==user._id) {
-            if (results.vehicles.length == 0) {
-              return interaction.send({ content: `Plate Number \`${args[0].options[0].value}\` not found.` });
-            }
+        let query = {
+          "vehicle.plate": args[0].options[0].value,
+          "vehicle.activeCommunityID": user.user.lastAccessedCommunity.communityID
+        };
 
-            let plateResults = [];
-            for (let i = 0; i < results.vehicles.length; i++) {
-              if (results.vehicles[i].vehicle.activeCommunityID != user.user.lastAccessedCommunity.communityID) continue;
-              let plateResult = new EmbedBuilder()
-                .setColor('#0099ff')
-                .setTitle(`**${results.vehicles[i].vehicle.plate} | ${results.vehicles[i]._id}**`)
-                .setURL('https://discord.gg/jgUW656v2t')
-                .setAuthor({ name: 'LPS Website Support', iconURL: client.config.IconURL, url: 'https://discord.gg/jgUW656v2t' })
-                .setDescription('Plate Search Results')
-                .addFields(
-                  { name: `**Plate #**`, value: `\`${results.vehicles[i].vehicle.plate}\``, inline: true },
-                  { name: `**Vin #**`, value: `\`${results.vehicles[i].vehicle.vin}\``, inline: true },
-                  { name: `**Model**`, value: `\`${results.vehicles[i].vehicle.model}\``, inline: true },
-                  { name: `**Color**`, value: `\`${results.vehicles[i].vehicle.color}\``, inline: true },
-                  { name: `**Owner**`, value: `\`${results.vehicles[i].vehicle.registeredOwner}\``, inline: true },
-                )
-              // Other details
-              let validRegistration = results.vehicles[i].vehicle.validRegistration;
-              let validInsurance = results.vehicles[i].vehicle.validInsurance;
-              let stolen = results.vehicles[i].vehicle.isStolen;
-              if (validRegistration=='1') plateResult.addFields({ name: `**Registration**`, value: `\`Valid\``, inline: true });
-              if (validRegistration=='2') plateResult.addFields({ name: `**Registration**`, value: `\`InValid\``, inline: true });
-              if (validInsurance=='1') plateResult.addFields({ name: `**Insurance**`, value: `\`Valid\``, inline: true });
-              if (validInsurance=='2') plateResult.addFields({ name: `**Insurance**`, value: `\`InValid\``, inline: true });
-              if (stolen=='1') plateResult.addFields({ name: `**Stolen**`, value: `\`No\``, inline: true });
-              if (stolen=='2') plateResult.addFields({ name: `**Stolen**`, value: `\`Yes\``, inline: true });
-              plateResults.push(plateResult);
-            }
-            return interaction.send({ embeds: plateResults });
+        client.dbo.collection("vehicles").findOne(query).then(async (results) => {
+          
+          if (!results) {
+            return interaction.send({ content: `Plate Number \`${args[0].options[0].value}\` not found.` });
           }
-          socket.disconnect();
+
+          let civilian = null;
+          if (results.vehicle.linkedCivilianID != "") civilian = await client.dbo.collection("civilians").findOne({ _id: new ObjectId(results.vehicle.linkedCivilianID) }).then((civ) => civ);
+          let owner = civilian ? civilian.civilian.name : "N/A";
+
+          let plateResult = new EmbedBuilder()
+          .setColor('#0099ff')
+          .setTitle(`**${results.vehicle.plate} | ${results._id}**`)
+          .setURL('https://discord.gg/jgUW656v2t')
+          .setAuthor({ name: 'LPS Website Support', iconURL: client.config.IconURL, url: 'https://discord.gg/jgUW656v2t' })
+          .setDescription('Plate Search Results')
+          .addFields(
+            { name: `**Plate #**`, value: `\`${results.vehicle.plate}\``, inline: true },
+            { name: `**Vin #**`, value: `\`${results.vehicle.vin}\``, inline: true },
+            { name: `**Model**`, value: `\`${results.vehicle.model}\``, inline: true },
+            { name: `**Color**`, value: `\`${results.vehicle.color}\``, inline: true },
+            { name: `**Owner**`, value: `\`${owner}\``, inline: true },
+          )
+          // Other details
+          let validRegistration = results.vehicle.validRegistration;
+          let validInsurance = results.vehicle.validInsurance;
+          let stolen = results.vehicle.isStolen;
+          if (validRegistration=='1') plateResult.addFields({ name: `**Registration**`, value: `\`Valid\``, inline: true });
+          if (validRegistration=='2') plateResult.addFields({ name: `**Registration**`, value: `\`InValid\``, inline: true });
+          if (validInsurance=='1') plateResult.addFields({ name: `**Insurance**`, value: `\`Valid\``, inline: true });
+          if (validInsurance=='2') plateResult.addFields({ name: `**Insurance**`, value: `\`InValid\``, inline: true });
+          if (stolen=='1') plateResult.addFields({ name: `**Stolen**`, value: `\`No\``, inline: true });
+          if (stolen=='2') plateResult.addFields({ name: `**Stolen**`, value: `\`Yes\``, inline: true });
+
+          return interaction.send({ embeds: [plateResult] });
         });
 
       } else if (args[0].name == "name") {

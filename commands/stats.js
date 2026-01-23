@@ -19,20 +19,50 @@ module.exports = {
      * @param {*} param3
      */
     run: async (client, interaction, args, { GuildDB }) => {
-      if (GuildDB.customChannelStatus==true&&!GuildDB.allowedChannels.includes(interaction.channel_id)) {
-        return interaction.send({ content: `You are not allowed to use the bot in this channel.` });
+      if (
+        GuildDB.customChannelStatus == true &&
+        !GuildDB.allowedChannels.includes(interaction.channel_id)
+      ) {
+        return interaction.send({
+          content: `You are not allowed to use the bot in this channel.`,
+        });
       }
-      const { version } = require("discord.js");
-      const totalGuilds = await client.shard.fetchClientValues("guilds.cache.size").then(results => {
-        return results.reduce((acc, guildCount) => acc + guildCount, 0)
-      });
-      const totalMembers = await client.shard.broadcastEval(c => c.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0)).then(data => data.reduce((acc, memberCount) => acc + memberCount, 0));
+
+      await interaction.defer();
+
+      let totalGuilds = client.guilds.cache.size;
+      let totalMembers = client.guilds.cache.reduce(
+        (acc, g) => acc + (g.memberCount ?? 0),
+        0,
+      );
+
+      if (client.shard) {
+        try {
+          const guildCounts =
+            await client.shard.fetchClientValues("guilds.cache.size");
+          totalGuilds = guildCounts.reduce((a, b) => a + b, 0);
+
+          const memberCounts = await client.shard.broadcastEval((c) =>
+            c.guilds.cache.reduce((acc, g) => acc + (g.memberCount ?? 0), 0),
+          );
+          totalMembers = memberCounts.reduce((a, b) => a + b, 0);
+        } catch (err) {
+          if (err?.code === "ShardingInProcess") {
+          } else {
+            throw err;
+          }
+        }
+      }
+
       const stats = new EmbedBuilder()
-          .setColor('#0099ff')
-          .setTitle("Current LPC-Bot Statistics")
-          .setURL(client.config.SupportServer)
-          .setDescription(`**Servers** : \`${totalGuilds}\`\n**Users** : \`${totalMembers}\``)
-      interaction.send({ embeds: [stats] })
+        .setColor("#0099ff")
+        .setTitle("Current LPC-Bot Statistics")
+        .setURL(client.config.SupportServer)
+        .setDescription(
+          `**Servers** : \`${totalGuilds}\`\n**Users** : \`${totalMembers}\``,
+        );
+
+      await interaction.editOriginal({ embeds: [stats] });
     },
   },
 };

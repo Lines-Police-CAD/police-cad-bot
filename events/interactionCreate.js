@@ -6,8 +6,8 @@ module.exports = async (client, interaction) => {
   */
 
   let GuildDB = await client.GetGuild(interaction.guildId);
-  const interactionName = interaction.customId.split('-')[0];
+  const interactionName = interaction.customId.split("-")[0];
   let interactionHandler = client.interactionHandlers.get(interactionName);
 
   interactionHandler.run(client, interaction, GuildDB);
-}
+};

@@ -29,6 +29,11 @@ class LinesPoliceCadBot extends Client {
 
     this.Ready = false;
 
+    // this.lpcs = io.connect(config.socket);
+    // this.lpcs.on('signal_100_button_updated', (res) => {
+    //   console.log(res);
+    // });
+
     this.ws.on("INTERACTION_CREATE", async (interaction) => {
       if (interaction.type != 3) {
         let GuildDB = await this.GetGuild(interaction.guild_id);

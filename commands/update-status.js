@@ -64,6 +64,7 @@ module.exports = {
         onDuty: onDuty,
         updateDuty: updateDuty
       };
+      
       const socket = io.connect(client.config.socket);
       socket.emit('bot_update_status', req);
       socket.on('bot_updated_status', (res) => {

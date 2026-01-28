@@ -27,28 +27,31 @@ module.exports = {
       const user = await client.dbo.collection("users").findOne({"user.discord.id": interaction.member.user.id}).then(user => user);
       if (!user) return interaction.send({ content: `You are not logged in. Go to https://linespolice-cad.com/ to login, and connect your Discord account.`, flags: (1 << 6) });
       if (!user.user.lastAccessedCommunity || !user.user.lastAccessedCommunity.communityID) return interaction.send({ content: `You must join a community to use this command.`, flags: (1 << 6) });
- 
+
+
       // If panic is enabled, disable panic
-      if (user.user.dispatchStatus == 'Panic') {
+      if (user.user.dispatchStatus == 'Signal 100' || user.user.dispatchStatus == 'Panic') {
 
         const socket = io.connect(client.config.socket);
-        socket.emit('clear_panic', {
-          userID: user._id,
-          communityID: user.user.lastAccessedCommunity.communityID
-        });
+
+        const req = {
+          activeCommunity: user.user.lastAccessedCommunity.communityID,
+          activatedByCallSign: "example",
+        };
+
+        socket.emit('clear_signal_100', req);
 
         let myUpdateReq = {
           userID: user._id,
           status: '10-8',
-          setBy: 'System',
-          onDuty: null,
-          updateDuty: false
+          setBy: 'Self',
+          onDuty: true,
         };
 
         socket.emit('bot_update_status', myUpdateReq);
         socket.on('bot_updated_status', (res) => {
           if (res.userID == user._id) {
-            interaction.send({ content: `Disabled Panic and set status to \`10-8\`.`, flags: (1 << 6) });
+            interaction.send({ content: `Disabled Signal 100 and set status to \`10-8\`.`, flags: (1 << 6) });
             socket.disconnect();
           }
         });
@@ -57,28 +60,32 @@ module.exports = {
       
       // If panic is disabled, enable panic
       } else {
-        
+        client.forceUpdateStatus('Signal 100', user);        
         if (!user.user.lastAccessedCommunity || !user.user.lastAccessedCommunity.communityID) return interaction.send({ content: `You must join a community to use this command.`, flags: (1 << 6) });
-        client.forceUpdateStatus('Panic', user);
-
-        let req = {
-          userID: user._id,
-          userUsername: user.user.username,
-          activeCommunity: user.user.lastAccessedCommunity.communityID
-        }
 
         const socket = io.connect(client.config.socket);      
-        socket.emit('panic_button_update', req);
-        socket.disconnect();
+        
+        const req = {
+          activeCommunity: user.user.lastAccessedCommunity.communityID,
+          activatedByCallSign: "example",
+        };
+
+        socket.emit('signal_100_button_update', req);
+
+        socket.on('signal_100_button_updated', (res) => {
+          if (res.activeCommunity = req.activeCommunity) {
+            socket.disconnect();
+          }
+        });
       
         let guild = await client.dbo.collection("prefixes").findOne({"server.serverID": GuildDB.serverID}).then(guild => guild);
       
         if (guild.server.pingOnPanic) {
           const channel = client.channels.cache.get(interaction.channel_id);
-          channel.send({ content: `Attention <@&${guild.server.pingRole}> \`${user.user.username}\` has activated panic` });
+          channel.send({ content: `Attention <@&${guild.server.pingRole}> \`${user.user.username}\` has activated Signal 100!` });
         }
 
-        return interaction.send({ content: 'Successfully activated Panic', flags: (1 << 6) });
+        return interaction.send({ content: 'Successfully activated Signal 100', flags: (1 << 6) });
       }
     },
   },

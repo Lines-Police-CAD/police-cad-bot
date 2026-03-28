@@ -73,7 +73,7 @@ module.exports = {
         socket.emit('signal_100_button_update', req);
 
         socket.on('signal_100_button_updated', (res) => {
-          if (res.activeCommunity = req.activeCommunity) {
+          if (res.activeCommunity === req.activeCommunity) {
             socket.disconnect();
           }
         });

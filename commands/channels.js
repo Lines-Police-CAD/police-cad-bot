@@ -99,9 +99,6 @@ module.exports = {
           $push: {
             "server.allowedChannels": channelid
           },
-          $set: {
-            "server.hasCustomChannels": true
-          }
         }, (err, _) => {
           if (err) throw err;
           return interaction.send({ content: `Successfully added <#${channelid}> to allowed channels.` });
@@ -113,13 +110,13 @@ module.exports = {
         if (!channel) return interaction.send({ content: `Uh Oh! The channel <#${channelid}> connot be found.` });
         
         const guild = await client.dbo.collection("prefixes").findOne({"server.serverID":interaction.guild.id}).then(guild => guild);
-        if (guild.server.hasCustomChannels==false) return interaction.send({ content: `There are no channels to be removed.` });
+        if (!guild.server.allowedChannels || guild.server.allowedChannels.length === 0) return interaction.send({ content: `There are no channels to be removed.` });
         if (!guild.server.allowedChannels.includes(channelid)) return interaction.send({ content: `The channel <#${channelid}> is not added to your channels.` });
         
         for (let i = 0; i < guild.server.allowedChannels.length; i++) {
           if (guild.server.allowedChannels[i]==channelid) {
             if ((guild.server.allowedChannels.length-1)==0) {
-              client.dbo.collection("prefixes").updateOne({"server.serverID":interaction.guild.id},{$pull:{"server.allowedChannels":channelid},$set:{"server.hasCustomChannels":false}},function(err, res) {
+              client.dbo.collection("prefixes").updateOne({"server.serverID":interaction.guild.id},{$pull:{"server.allowedChannels":channelid}},function(err, res) {
                 if (err) throw err;
                 return interaction.send({ content: `Successfully removed <#${channelid}> from allowed channels! There are no more allowed channels.` });
               });  
@@ -133,7 +130,7 @@ module.exports = {
         }
 
       } else if (args[0].name == "reset") {
-        client.dbo.collection("prefixes").updateOne({"server.serverID":interaction.guild.id},{$set:{"server.allowedChannels": [], "server.hasCustomChannels": false}},function(err, res) {
+        client.dbo.collection("prefixes").updateOne({"server.serverID":interaction.guild.id},{$set:{"server.allowedChannels": []}},function(err, res) {
           if (err) throw err;
           return interaction.send({ content: `Successfully reset all configured channels` });
         });

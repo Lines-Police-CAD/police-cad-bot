@@ -1,6 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
-const bitfieldCalculator = require('discord-bitfield-calculator');
+const { PermissionsBitField } = require("discord.js");
 
 module.exports = {
   name: "channels",
@@ -77,14 +77,14 @@ module.exports = {
             { name: `There are currently ${guild.server.allowedChannels.length} allowed channels.`, value: `Channels:${channels}`, inline: true },
           )
           .setFooter({ text: 'LPS Website Support', iconURL: client.config.IconURL, proxyIconURL: 'https://discord.gg/jgUW656v2t' })
-        
+
         return interaction.send({ embeds: [channelsEmbed] });
       }
 
 
       // These sub-commands require elevated permissions
-      const permissions = bitfieldCalculator.permissions(interaction.member.permissions);
-      if (!permissions.includes("MANAGE_GUILD")) return interaction.send({ content: 'You don\'t have the permissions to use this command.' });
+      const permissions = new PermissionsBitField(interaction.member.permissions).toArray();
+      if (!permissions.includes("ManageGuild")) return interaction.send({ content: 'You don\'t have the permissions to use this command.' });
 
       if (args[0].name == "set") {
         let channelid = args[0].options[0].value;
@@ -111,18 +111,18 @@ module.exports = {
         let channelid = args[0].options[0].value;
         let channel = client.channels.cache.get(channelid);
         if (!channel) return interaction.send({ content: `Uh Oh! The channel <#${channelid}> connot be found.` });
-        
+
         const guild = await client.dbo.collection("prefixes").findOne({"server.serverID":interaction.guild.id}).then(guild => guild);
         if (guild.server.hasCustomChannels==false) return interaction.send({ content: `There are no channels to be removed.` });
         if (!guild.server.allowedChannels.includes(channelid)) return interaction.send({ content: `The channel <#${channelid}> is not added to your channels.` });
-        
+
         for (let i = 0; i < guild.server.allowedChannels.length; i++) {
           if (guild.server.allowedChannels[i]==channelid) {
             if ((guild.server.allowedChannels.length-1)==0) {
               client.dbo.collection("prefixes").updateOne({"server.serverID":interaction.guild.id},{$pull:{"server.allowedChannels":channelid},$set:{"server.hasCustomChannels":false}},function(err, res) {
                 if (err) throw err;
                 return interaction.send({ content: `Successfully removed <#${channelid}> from allowed channels! There are no more allowed channels.` });
-              });  
+              });
             } else if ((guild.server.allowedChannels.length-1)>0) {
               client.dbo.collection("prefixes").updateOne({"server.serverID":interaction.guild.id},{$pull:{"server.allowedChannels":channelid}},function(err, res) {
                 if (err) throw err;

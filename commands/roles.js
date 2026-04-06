@@ -1,6 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
-const bitfieldCalculator = require('discord-bitfield-calculator');
+const { PermissionsBitField } = require("discord.js");
 
 module.exports = {
   name: "roles",
@@ -58,12 +58,12 @@ module.exports = {
         if (GuildDB.customChannelStatus==true&&!GuildDB.allowedChannels.includes(interaction.channel_id)) {
           return interaction.send({ content: `You are not allowed to use the bot in this channel.` });
         }
-  
+
         let guild = await client.dbo.collection("prefixes").findOne({"server.serverID":interaction.guild.id}).then(guild => guild);
         if (!client.exists(guild.server.hasCustomRoles) || !guild.server.hasCustomRoles) {
           return interaction.send({ content: 'There are no roles set for the bot.' });
         }
-  
+
         let roles = ``;
         for (let i = 0; i < guild.server.allowedRoles.length; i++) {
           if (guild.server.allowedRoles[i] == undefined) break;
@@ -81,11 +81,11 @@ module.exports = {
         return interaction.send({ embeds: [rolesEmbed] });
 
       }
-      
+
 
       // These sub-commands require elevated permissions
-      const permissions = bitfieldCalculator.permissions(interaction.member.permissions);
-      if (!permissions.includes("MANAGE_GUILD")) return interaction.send({ content: 'You don\'t have the permissions to use this command.' });
+      const permissions = new PermissionsBitField(interaction.member.permissions).toArray();
+      if (!permissions.includes("ManageGuild")) return interaction.send({ content: 'You don\'t have the permissions to use this command.' });
 
       if (args[0].name == "set") {
         let roleid = args[0].options[0].value;
@@ -105,18 +105,18 @@ module.exports = {
         let roleid = args[0].options[0].value;
         let role = interaction.guild.roles.cache.find(x => x.id == roleid);
         if (role == undefined) return interaction.send({ content: `Uh Oh! The role <@&${roleid}> connot be found.` });
-        
+
         const guild = await client.dbo.collection("prefixes").findOne({"server.serverID":interaction.guild.id}).then(guild => guild);
         if (!client.exists(guild.server.hasCustomRoles) || !guild.server.hasCustomRoles) return interaction.send({ content: `There are no roles to be removed.` });
         if (!guild.server.allowedRoles.includes(roleid)) return interaction.send({ content: `The role <@&${roleid}> is not added to your roles.` });
-        
+
         for (let i = 0; i < guild.server.allowedRoles.length; i++) {
           if (guild.server.allowedRoles[i]==roleid) {
             if ((guild.server.allowedRoles.length-1)==0) {
               client.dbo.collection("prefixes").updateOne({"server.serverID":interaction.guild.id},{$pull:{"server.allowedRoles":roleid},$set:{"server.hasCustomRoles":false}},function(err, res) {
                 if (err) throw err;
                 return interaction.send({ content: `Successfully removed <@&${roleid}> from allowed roles! There are no more allowed roles.` });
-              });  
+              });
             } else if ((guild.server.allowedRoles.length-1)>0) {
               client.dbo.collection("prefixes").updateOne({"server.serverID":interaction.guild.id},{$pull:{"server.allowedRoles":roleid}},function(err, res) {
                 if (err) throw err;

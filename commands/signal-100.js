@@ -1,8 +1,8 @@
 const { apiRequest } = require('../util/api');
 
 module.exports = {
-  name: "panic",
-  description: "Toggle your panic alert",
+  name: "signal-100",
+  description: "Toggle Signal 100 for your community",
   permissions: {
     channel: ["VIEW_CHANNEL", "SEND_MESSAGES", "EMBED_LINKS"],
     member: [],
@@ -34,25 +34,26 @@ module.exports = {
       await interaction.defer();
 
       try {
-        // Check if user already has an active panic alert
-        const alertsRes = await apiRequest(client, 'GET', `/api/v1/community/${communityId}/panic-alerts?status=active`);
-        const myActiveAlert = (alertsRes.alerts || []).find(a => a.userId === userId || a.userID === userId);
+        // Check current Signal 100 status
+        const status = await apiRequest(client, 'GET', `/api/v1/community/${communityId}/signal-100`);
 
-        if (myActiveAlert) {
-          // Clear the user's active panic alerts
-          await apiRequest(client, 'DELETE', `/api/v1/community/${communityId}/panic-alerts/user/${userId}`, {
-            clearedBy: userId,
+        if (status.active) {
+          // Signal 100 is already active — clear it
+          await apiRequest(client, 'DELETE', `/api/v1/community/${communityId}/signal-100`, {
+            clearedByUserId: userId,
+            clearedByUsername: user.user.username,
+            clearedByCallSign: user.user.callSign || '',
           });
 
-          return interaction.editOriginal({ content: `Panic alert cleared.` });
+          return interaction.editOriginal({ content: `Signal 100 has been cleared.` });
         }
 
-        // Activate panic alert
-        await apiRequest(client, 'POST', `/api/v1/community/${communityId}/panic-alerts`, {
+        // Activate Signal 100
+        await apiRequest(client, 'POST', `/api/v1/community/${communityId}/signal-100`, {
           userId: userId,
           username: user.user.username,
           callSign: user.user.callSign || '',
-          departmentType: 'police',
+          departmentName: '',
         });
 
         // Send ping notification if configured
@@ -60,14 +61,14 @@ module.exports = {
         if (guild && guild.server.pingOnPanic) {
           const channel = client.channels.cache.get(interaction.channel_id);
           if (channel) {
-            channel.send({ content: `Attention <@&${guild.server.pingRole}> \`${user.user.username}\` has activated a panic alert!` });
+            channel.send({ content: `Attention <@&${guild.server.pingRole}> \`${user.user.username}\` has activated Signal 100!` });
           }
         }
 
-        return interaction.editOriginal({ content: `Panic alert activated.` });
+        return interaction.editOriginal({ content: `Signal 100 activated.` });
       } catch (err) {
-        client.error(`Panic command error: ${err.message}`);
-        return interaction.editOriginal({ content: `Failed to toggle panic alert. Please try again.` });
+        client.error(`Signal 100 command error: ${err.message}`);
+        return interaction.editOriginal({ content: `Failed to toggle Signal 100. Please try again.` });
       }
     },
   },

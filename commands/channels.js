@@ -84,7 +84,7 @@ module.exports = {
 
       // These sub-commands require elevated permissions
       const permissions = new PermissionsBitField(interaction.member.permissions).toArray();
-      if (!permissions.includes("ManageGuild")) return interaction.send({ content: 'You don\'t have the permissions to use this command.' });
+      if (!permissions.includes("ManageGuild")) return interaction.send({ content: 'You need the **Manage Server** permission to use this command.' });
 
       if (args[0].name == "set") {
         let channelid = args[0].options[0].value;

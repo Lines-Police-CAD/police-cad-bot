@@ -14,7 +14,7 @@ class Logger {
       level: "info",
       message:
         `${d.getHours()}:${
-          d.getMinutes
+          d.getMinutes()
         } - ${d.getDate()}:${d.getMonth()}:${d.getFullYear()} | Info: ` + Text,
     });
     console.log(
@@ -30,12 +30,12 @@ class Logger {
       level: "error",
       message:
         `${d.getHours()}:${
-          d.getMInutes
+          d.getMinutes()
         } - ${d.getDate()}:${d.getMonth()}:${d.getFullYear()} | Error: ` + Text,
     });
     console.log(
       colors.green(
-        `${d.getDate()}:${d.getMonth()}:${d.getFullYear()} - ${d.getHours}:${d.getMinutes()}`
+        `${d.getDate()}:${d.getMonth()}:${d.getFullYear()} - ${d.getHours()}:${d.getMinutes()}`
       ) + colors.yellow(" | Error: ") + colors.red(Text)
     );
   }

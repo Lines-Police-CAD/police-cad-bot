@@ -118,6 +118,15 @@ module.exports = {
         return interaction.send({ content: `No case found with number \`${rawInput}\` in this community.` });
       }
 
+      let communityName = '';
+      try {
+        const community = await client.dbo
+          .collection("communities")
+          .findOne({ _id: ObjectId(communityID) }, { projection: { "community.name": 1 } });
+        communityName = (community && community.community && community.community.name) || '';
+      } catch (_) {}
+      const authorName = communityName ? `${communityName} Court Cases` : 'Court Cases';
+
       const d = courtCase.courtCase || {};
       const status = STATUS_LABEL[d.status] || d.status || 'Unknown';
       const itemCount = (d.contestedItems || []).length;
@@ -131,7 +140,7 @@ module.exports = {
         .setColor('#38bdf8')
         .setTitle(`**${d.caseNumber || 'Court Case'}**`)
         .setURL('https://discord.gg/jgUW656v2t')
-        .setAuthor({ name: 'LPS Court Cases', iconURL: client.config.IconURL, url: 'https://discord.gg/jgUW656v2t' })
+        .setAuthor({ name: authorName, iconURL: client.config.IconURL, url: 'https://discord.gg/jgUW656v2t' })
         .setDescription(`Case Search Results`)
         .addFields(
           { name: '**Case #**', value: `\`${d.caseNumber || courtCase._id}\``, inline: true },

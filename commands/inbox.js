@@ -10,6 +10,7 @@ const {
   civilianAutocomplete,
   resolveCivilianId,
   lookupCivilianName,
+  formatInboxItemLabel,
 } = require('../util/economy');
 
 const STATUS_LABEL = {
@@ -112,8 +113,7 @@ module.exports = {
         const lines = items.slice(0, 10).map((i) => {
           const label = STATUS_LABEL[i.status] || i.status;
           const idShort = String(i._id || '').slice(-6);
-          const title = i.title || i.type || 'Item';
-          return `• \`${idShort}\` — ${formatMoney(i.amount)} — ${title} (${label}, due ${formatDueDate(i.dueAt)})`;
+          return `• \`${idShort}\` — ${formatInboxItemLabel(i)} — ${label}, due ${formatDueDate(i.dueAt)}`;
         });
 
         const totalCount = (res && res.totalCount) || items.length;

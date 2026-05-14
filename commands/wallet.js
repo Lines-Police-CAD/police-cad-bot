@@ -12,6 +12,7 @@ const {
   resolveCivilianId,
   lookupCivilianName,
   isCommunityEconomyEnabled,
+  formatInboxItemLabel,
 } = require('../util/economy');
 
 const STATUS_LABEL = {
@@ -120,7 +121,7 @@ module.exports = {
         if (pending.length > 0) {
           const lines = pending.slice(0, 5).map((i) => {
             const label = STATUS_LABEL[i.status] || i.status;
-            return `• ${formatMoney(i.amount)} — ${i.title || i.type || 'Fine'} (${label}, due ${formatDueDate(i.dueAt)})`;
+            return `• ${formatInboxItemLabel(i)} — ${label}, due ${formatDueDate(i.dueAt)}`;
           });
           embed.addFields({ name: '**Recent Pending**', value: lines.join('\n') });
         }

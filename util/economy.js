@@ -216,13 +216,61 @@ async function fetchInboxChoices(client, civilianId, communityId, query, statuse
   return all
     .map((i) => {
       const id = String(i._id || '');
-      const title = i.title || i.type || 'Item';
-      const label = `${formatMoney(i.amount)} — ${title}`.slice(0, 100);
-      return { name: label, value: id, _searchKey: `${title} ${id}`.toLowerCase() };
+      const label = formatInboxItemLabel(i);
+      const searchHay = `${i.title || ''} ${i.body || ''} ${(i.charges || []).map((c) => c.label).join(' ')} ${id}`.toLowerCase();
+      return { name: label, value: id, _searchKey: searchHay };
     })
     .filter((c) => !q || c._searchKey.includes(q))
     .slice(0, 25)
     .map(({ _searchKey, ...rest }) => rest);
+}
+
+/**
+ * Build a Discord-friendly label for an inbox item that surfaces what the
+ * charge is actually for. Examples:
+ *   "$250.00 — Citation: Speeding 25+, No Plates"
+ *   "$150.00 — Admin fee: Late library book"
+ *   "$50.00 — Verdict (due 5/22)"
+ *
+ * Capped at 100 chars (Discord's autocomplete name limit).
+ */
+function formatInboxItemLabel(item) {
+  const amount = formatMoney(item && item.amount);
+  const sourceLabel = (() => {
+    switch (item && item.source) {
+      case 'citation': return 'Citation';
+      case 'admin': return 'Admin fee';
+      case 'judicial': return 'Verdict';
+      case 'shop': return 'Purchase';
+      case 'system': return 'System';
+      default: return (item && item.title) || (item && item.type) || 'Item';
+    }
+  })();
+
+  let detail = '';
+  const charges = (item && item.charges) || [];
+  if (charges.length > 0) {
+    const labels = charges
+      .filter((c) => c && c.status !== 'dismissed' && c.label)
+      .map((c) => c.label);
+    if (labels.length > 0) detail = labels.join(', ');
+  }
+  if (!detail && item && item.title) detail = item.title;
+  if (!detail && item && item.body) detail = item.body;
+
+  let label = detail ? `${amount} — ${sourceLabel}: ${detail}` : `${amount} — ${sourceLabel}`;
+
+  // Add a due-date hint when there's space.
+  if (item && item.dueAt) {
+    const d = new Date(item.dueAt);
+    if (!Number.isNaN(d.getTime())) {
+      const hint = ` (due ${d.getMonth() + 1}/${d.getDate()})`;
+      if (label.length + hint.length <= 100) label += hint;
+    }
+  }
+
+  if (label.length > 100) label = `${label.slice(0, 97)}...`;
+  return label;
 }
 
 module.exports = {
@@ -242,4 +290,5 @@ module.exports = {
   resolveCivilianId,
   lookupCivilianName,
   isCommunityEconomyEnabled,
+  formatInboxItemLabel,
 };

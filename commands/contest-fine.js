@@ -119,8 +119,17 @@ module.exports = {
             { name: '**Civilian**', value: `\`${civName}\``, inline: true },
             { name: '**Amount**', value: `\`${formatMoney(item.amount)}\``, inline: true },
             { name: '**New Due Date**', value: `\`${formatDueDate(item.dueAt)}\``, inline: true },
-            { name: '**Reason**', value: `\`${reason.slice(0, 1000)}\`` },
           );
+
+        const chargeLines = (item.charges || [])
+          .filter((c) => c && c.label && c.status !== 'dismissed')
+          .map((c) => `• ${c.label} — ${formatMoney(c.amount)}`);
+        if (chargeLines.length > 0) {
+          embed.addFields({ name: '**Charges**', value: chargeLines.join('\n').slice(0, 1024) });
+        } else if (item.body) {
+          embed.addFields({ name: '**Details**', value: String(item.body).slice(0, 1024) });
+        }
+        embed.addFields({ name: '**Reason**', value: `\`${reason.slice(0, 1000)}\`` });
 
         return interaction.editOriginal({ embeds: [embed] });
       } catch (err) {

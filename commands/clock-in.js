@@ -38,9 +38,9 @@ module.exports = {
     },
     {
       name: "civilian",
-      description: "Civilian to clock in as (optional)",
+      description: "Civilian to clock in as",
       type: CommandOptions.String,
-      required: false,
+      required: true,
       autocomplete: true,
     },
   ],
@@ -100,6 +100,8 @@ module.exports = {
 
       if (!departmentId)
         return interaction.send({ content: `Please pick a department to clock into.`, flags: (1 << 6) });
+      if (!civilianId)
+        return interaction.send({ content: `Please pick a civilian to clock in as.`, flags: (1 << 6) });
 
       await interaction.defer();
 

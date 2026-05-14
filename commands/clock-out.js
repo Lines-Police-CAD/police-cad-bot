@@ -1,6 +1,21 @@
 const { EmbedBuilder } = require('discord.js');
 const { apiRequest } = require('../util/api');
-const { formatMoney, formatDuration, getLpcUser } = require('../util/economy');
+const { formatMoney, formatDuration, getLpcUser, civilianName } = require('../util/economy');
+const ObjectId = require('mongodb').ObjectId;
+
+async function findActiveSessionForUser(client, userId) {
+  return client.dbo
+    .collection('clock_sessions')
+    .findOne({ status: 'active', userId });
+}
+
+async function lookupCivilianName(client, civilianId) {
+  if (!civilianId) return null;
+  let oid;
+  try { oid = new ObjectId(civilianId); } catch (_) { return null; }
+  const doc = await client.dbo.collection('civilians').findOne({ _id: oid });
+  return doc ? civilianName(doc) : null;
+}
 
 module.exports = {
   name: "clock-out",
@@ -25,13 +40,9 @@ module.exports = {
       await interaction.defer();
 
       try {
-        const active = await apiRequest(
-          client,
-          'GET',
-          `/api/v2/economy/session/active?userId=${encodeURIComponent(userId)}`,
-        );
-        if (!active || !active._id) {
-          return interaction.editOriginal({ content: `You don't have an active user-level shift. If you clocked in as a civilian, end it from the website or app.` });
+        const active = await findActiveSessionForUser(client, userId);
+        if (!active) {
+          return interaction.editOriginal({ content: `You don't have an active shift to clock out of.` });
         }
 
         const result = await apiRequest(
@@ -44,12 +55,14 @@ module.exports = {
         const sess = (result && result.session) || result;
         const credited = (result && typeof result.creditedAmount === 'number') ? result.creditedAmount : 0;
         const elapsed = sess && sess.startedAt ? Date.now() - new Date(sess.startedAt).getTime() : 0;
+        const civName = (await lookupCivilianName(client, sess.civilianId)) || 'User-level shift';
 
         const embed = new EmbedBuilder()
           .setColor('#38bdf8')
           .setAuthor({ name: 'Clocked Out', iconURL: client.config.IconURL })
           .setTitle(sess.departmentName || 'Off Duty')
           .addFields(
+            { name: '**Civilian**', value: `\`${civName}\``, inline: true },
             { name: '**Earned**', value: `\`${formatMoney(credited)}\``, inline: true },
             { name: '**Shift Length**', value: `\`${formatDuration(elapsed)}\``, inline: true },
           );

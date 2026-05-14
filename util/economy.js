@@ -131,19 +131,19 @@ function civilianName(civ) {
 }
 
 /**
- * Build autocomplete choices for an inbox-item picker.
+ * Build autocomplete choices for an inbox-item picker, scoped to one civilian.
  * @param {object} client Bot client (for apiRequest)
- * @param {string} userId LPC user _id
+ * @param {string} civilianId Civilian whose inbox to query
  * @param {string} communityId Active community id
  * @param {string} query Currently-typed filter text
  * @param {string[]} statuses Statuses to include (e.g., ['pending','delinquent'])
  */
-async function fetchInboxChoices(client, userId, communityId, query, statuses) {
+async function fetchInboxChoices(client, civilianId, communityId, query, statuses) {
   const { apiRequest } = require('./api');
   const q = (query || '').toLowerCase();
   const all = [];
   for (const status of statuses) {
-    const path = `/api/v2/economy/inbox?userId=${encodeURIComponent(userId)}&communityId=${encodeURIComponent(communityId)}&status=${encodeURIComponent(status)}&limit=25`;
+    const path = `/api/v2/economy/inbox?civilianId=${encodeURIComponent(civilianId)}&communityId=${encodeURIComponent(communityId)}&status=${encodeURIComponent(status)}&limit=25`;
     try {
       const res = await apiRequest(client, 'GET', path);
       const items = (res && res.data) || [];

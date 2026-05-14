@@ -1,7 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 const { apiRequest } = require('../util/api');
-const { formatMoney, formatDueDate, getLpcUser, findOption, getFocusedOption, fetchInboxChoices } = require('../util/economy');
+const { formatMoney, formatDueDate, getLpcUser, findOption, getFocusedOption, fetchInboxChoices, civilianAutocomplete } = require('../util/economy');
 
 module.exports = {
   name: "contest-fine",
@@ -11,6 +11,13 @@ module.exports = {
     member: [],
   },
   options: [
+    {
+      name: "civilian",
+      description: "Civilian who received the fine",
+      type: CommandOptions.String,
+      required: true,
+      autocomplete: true,
+    },
     {
       name: "fine",
       description: "The fine to contest",
@@ -31,16 +38,38 @@ module.exports = {
       if (!user || !user.user.lastAccessedCommunity || !user.user.lastAccessedCommunity.communityID) {
         return interaction.respond([]);
       }
+      const userId = user._id.toString();
+      const communityId = user.user.lastAccessedCommunity.communityID;
       const focused = getFocusedOption(interaction.data.options);
-      if (!focused || focused.name !== 'fine') return interaction.respond([]);
-      const choices = await fetchInboxChoices(
-        client,
-        user._id.toString(),
-        user.user.lastAccessedCommunity.communityID,
-        focused.value,
-        ['pending', 'delinquent'],
-      );
-      return interaction.respond(choices);
+      if (!focused) return interaction.respond([]);
+
+      if (focused.name === 'civilian') {
+        try {
+          const choices = await civilianAutocomplete(client, userId, communityId, focused.value);
+          return interaction.respond(choices);
+        } catch (err) {
+          client.error(`/contest-fine civilian autocomplete: ${err.message}`);
+          return interaction.respond([]);
+        }
+      }
+      if (focused.name === 'fine') {
+        const civilianId = (findOption(interaction.data.options, 'civilian') || {}).value;
+        if (!civilianId) return interaction.respond([]);
+        try {
+          const choices = await fetchInboxChoices(
+            client,
+            civilianId,
+            communityId,
+            focused.value,
+            ['pending', 'delinquent'],
+          );
+          return interaction.respond(choices);
+        } catch (err) {
+          client.error(`/contest-fine fine autocomplete: ${err.message}`);
+          return interaction.respond([]);
+        }
+      }
+      return interaction.respond([]);
     },
   },
   SlashCommand: {

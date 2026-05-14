@@ -1,7 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 const { apiRequest } = require('../util/api');
-const { formatMoney, formatDueDate, getLpcUser, findOption } = require('../util/economy');
+const { formatMoney, formatDueDate, getLpcUser, findOption, getFocusedOption, civilianAutocomplete } = require('../util/economy');
 
 const STATUS_LABEL = {
   pending: 'Pending',
@@ -20,6 +20,13 @@ module.exports = {
   },
   options: [
     {
+      name: "civilian",
+      description: "Civilian whose inbox to view",
+      type: CommandOptions.String,
+      required: true,
+      autocomplete: true,
+    },
+    {
       name: "status",
       description: "Filter by status (default: pending)",
       type: CommandOptions.String,
@@ -33,6 +40,28 @@ module.exports = {
       ],
     },
   ],
+  Autocomplete: {
+    run: async (client, interaction) => {
+      const user = await getLpcUser(client, interaction.member.user.id);
+      if (!user || !user.user.lastAccessedCommunity || !user.user.lastAccessedCommunity.communityID) {
+        return interaction.respond([]);
+      }
+      const focused = getFocusedOption(interaction.data.options);
+      if (!focused || focused.name !== 'civilian') return interaction.respond([]);
+      try {
+        const choices = await civilianAutocomplete(
+          client,
+          user._id.toString(),
+          user.user.lastAccessedCommunity.communityID,
+          focused.value,
+        );
+        return interaction.respond(choices);
+      } catch (err) {
+        client.error(`/inbox autocomplete: ${err.message}`);
+        return interaction.respond([]);
+      }
+    },
+  },
   SlashCommand: {
     run: async (client, interaction, args, { GuildDB }) => {
       if (GuildDB.customChannelStatus == true && !GuildDB.allowedChannels.includes(interaction.channel_id))
@@ -46,14 +75,17 @@ module.exports = {
       if (!user.user.lastAccessedCommunity || !user.user.lastAccessedCommunity.communityID)
         return interaction.send({ content: `You must join a community to use this command.`, flags: (1 << 6) });
 
-      const userId = user._id.toString();
       const communityId = user.user.lastAccessedCommunity.communityID;
+      const civilianId = (findOption(args, 'civilian') || {}).value;
       const status = (findOption(args, 'status') || {}).value || 'pending';
+
+      if (!civilianId)
+        return interaction.send({ content: `Please pick a civilian.`, flags: (1 << 6) });
 
       await interaction.defer();
 
       try {
-        const path = `/api/v2/economy/inbox?userId=${encodeURIComponent(userId)}&communityId=${encodeURIComponent(communityId)}&limit=25` +
+        const path = `/api/v2/economy/inbox?civilianId=${encodeURIComponent(civilianId)}&communityId=${encodeURIComponent(communityId)}&limit=25` +
           (status === 'all' ? '' : `&status=${encodeURIComponent(status)}`);
         const res = await apiRequest(client, 'GET', path);
         const items = (res && res.data) || [];

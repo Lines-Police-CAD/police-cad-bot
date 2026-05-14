@@ -67,6 +67,31 @@ async function getLpcUser(client, discordUserId) {
 }
 
 /**
+ * List a user's civilians in a community via the v2 API.
+ */
+async function listUserCivilians(client, userId, communityId) {
+  const { apiRequest } = require('./api');
+  const res = await apiRequest(
+    client,
+    'GET',
+    `/api/v2/civilians/user/${userId}?active_community_id=${encodeURIComponent(communityId)}&limit=50`
+  );
+  return (res && res.data) || [];
+}
+
+/**
+ * Build civilian autocomplete choices filtered by typed query.
+ */
+async function civilianAutocomplete(client, userId, communityId, query) {
+  const civs = await listUserCivilians(client, userId, communityId);
+  const q = (query || '').toLowerCase();
+  return civs
+    .map((c) => ({ name: civilianName(c), value: c._id.toString() }))
+    .filter((c) => !q || c.name.toLowerCase().includes(q))
+    .slice(0, 25);
+}
+
+/**
  * List the departments a user can /clock-in to. Filters to:
  *  - community.economy.enabled === true
  *  - department.economyEnabled === true
@@ -149,4 +174,6 @@ module.exports = {
   fetchInboxChoices,
   civilianName,
   listClockableDepartments,
+  listUserCivilians,
+  civilianAutocomplete,
 };

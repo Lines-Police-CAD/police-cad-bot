@@ -67,6 +67,18 @@ async function getLpcUser(client, discordUserId) {
 }
 
 /**
+ * Resolve a civilian's display name. Older docs only have `name`; newer ones
+ * have `firstName`/`lastName`.
+ */
+function civilianName(civ) {
+  const d = (civ && civ.civilian) || {};
+  const composed = `${d.firstName || ''} ${d.lastName || ''}`.trim();
+  if (composed) return composed;
+  if (d.name && d.name.trim()) return d.name.trim();
+  return 'Unnamed';
+}
+
+/**
  * Build autocomplete choices for an inbox-item picker.
  * @param {object} client Bot client (for apiRequest)
  * @param {string} userId LPC user _id
@@ -108,4 +120,5 @@ module.exports = {
   findOption,
   getLpcUser,
   fetchInboxChoices,
+  civilianName,
 };

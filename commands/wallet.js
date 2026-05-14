@@ -1,7 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 const { apiRequest } = require('../util/api');
-const { formatMoney, formatDuration, formatDueDate, getLpcUser, findOption, getFocusedOption } = require('../util/economy');
+const { formatMoney, formatDuration, formatDueDate, getLpcUser, findOption, getFocusedOption, civilianName } = require('../util/economy');
 
 const STATUS_LABEL = {
   pending: 'Pending',
@@ -18,11 +18,6 @@ async function listUserCivilians(client, userId, communityId) {
     `/api/v2/civilians/user/${userId}?active_community_id=${encodeURIComponent(communityId)}&limit=50`
   );
   return (res && res.data) || [];
-}
-
-function civilianName(civ) {
-  const d = (civ && civ.civilian) || {};
-  return `${d.firstName || ''} ${d.lastName || ''}`.trim() || 'Unnamed';
 }
 
 module.exports = {

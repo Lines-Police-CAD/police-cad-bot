@@ -1,12 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 const { apiRequest } = require('../util/api');
-const { formatMoney, getLpcUser, findOption, getFocusedOption } = require('../util/economy');
-
-function civilianName(civ) {
-  const d = (civ && civ.civilian) || {};
-  return `${d.firstName || ''} ${d.lastName || ''}`.trim() || 'Unnamed';
-}
+const { formatMoney, getLpcUser, findOption, getFocusedOption, civilianName } = require('../util/economy');
 
 async function listUserCivilians(client, userId, communityId) {
   const res = await apiRequest(

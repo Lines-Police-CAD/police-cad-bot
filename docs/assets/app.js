@@ -41,38 +41,46 @@
     );
   };
 
+  // Scroll-spy: pick the section whose top has most-recently passed an
+  // "activation line" at 30% of viewport height. Reliable regardless of
+  // section size — IntersectionObserver-based versions broke on very tall
+  // sections (Commands) whose intersection ratio never crossed the lowest
+  // threshold, and on very short ones (Support) at the bottom edge.
+  const lastSectionId = sectionEls.length ? sectionEls[sectionEls.length - 1].id : null;
+
   const isNearBottom = () =>
     window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 8;
 
-  const lastSectionId = sectionEls.length ? sectionEls[sectionEls.length - 1].id : null;
-
-  if ("IntersectionObserver" in window) {
-    const obs = new IntersectionObserver(
-      (entries) => {
-        // When the page is scrolled to the bottom, the last section can sit
-        // below the observer's active band (rootMargin) and never be flagged
-        // as visible. Force it active in that case.
-        if (lastSectionId && isNearBottom()) {
-          setActive(lastSectionId);
-          return;
-        }
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (visible) setActive(visible.target.id);
-      },
-      { rootMargin: "-30% 0px -55% 0px", threshold: [0.1, 0.5, 0.9] }
-    );
-    sectionEls.forEach((el) => obs.observe(el));
-  }
-
-  // Scroll/resize fallback for the bottom edge — IntersectionObserver may not
-  // re-fire if you scroll the last few pixels into view.
-  const onScrollEdge = () => {
-    if (lastSectionId && isNearBottom()) setActive(lastSectionId);
+  const updateActiveSection = () => {
+    if (!sectionEls.length) return;
+    if (isNearBottom()) {
+      setActive(lastSectionId);
+      return;
+    }
+    const activationLine = window.innerHeight * 0.3;
+    let active = sectionEls[0];
+    for (const el of sectionEls) {
+      if (el.getBoundingClientRect().top <= activationLine) {
+        active = el;
+      } else {
+        break;
+      }
+    }
+    setActive(active.id);
   };
-  window.addEventListener("scroll", onScrollEdge, { passive: true });
-  window.addEventListener("resize", onScrollEdge);
+
+  let scrollScheduled = false;
+  const onScroll = () => {
+    if (scrollScheduled) return;
+    scrollScheduled = true;
+    requestAnimationFrame(() => {
+      updateActiveSection();
+      scrollScheduled = false;
+    });
+  };
+  window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", onScroll);
+  updateActiveSection();
 
   /* ---------- footer year ---------- */
   const yearEl = document.getElementById("copyright-year");

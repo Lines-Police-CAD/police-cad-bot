@@ -41,9 +41,21 @@
     );
   };
 
+  const isNearBottom = () =>
+    window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 8;
+
+  const lastSectionId = sectionEls.length ? sectionEls[sectionEls.length - 1].id : null;
+
   if ("IntersectionObserver" in window) {
     const obs = new IntersectionObserver(
       (entries) => {
+        // When the page is scrolled to the bottom, the last section can sit
+        // below the observer's active band (rootMargin) and never be flagged
+        // as visible. Force it active in that case.
+        if (lastSectionId && isNearBottom()) {
+          setActive(lastSectionId);
+          return;
+        }
         const visible = entries
           .filter((e) => e.isIntersecting)
           .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
@@ -53,6 +65,18 @@
     );
     sectionEls.forEach((el) => obs.observe(el));
   }
+
+  // Scroll/resize fallback for the bottom edge — IntersectionObserver may not
+  // re-fire if you scroll the last few pixels into view.
+  const onScrollEdge = () => {
+    if (lastSectionId && isNearBottom()) setActive(lastSectionId);
+  };
+  window.addEventListener("scroll", onScrollEdge, { passive: true });
+  window.addEventListener("resize", onScrollEdge);
+
+  /* ---------- footer year ---------- */
+  const yearEl = document.getElementById("copyright-year");
+  if (yearEl) yearEl.textContent = String(new Date().getFullYear());
 
   /* ---------- search keyboard shortcut ---------- */
   const searchInput = $("#search");

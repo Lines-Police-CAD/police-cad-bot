@@ -1,7 +1,16 @@
 const { EmbedBuilder } = require('discord.js');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 const { apiRequest } = require('../util/api');
-const { formatMoney, getLpcUser, findOption, getFocusedOption, fetchInboxChoices, civilianAutocomplete } = require('../util/economy');
+const {
+  formatMoney,
+  getLpcUser,
+  findOption,
+  getFocusedOption,
+  fetchInboxChoices,
+  civilianAutocomplete,
+  resolveCivilianId,
+  lookupCivilianName,
+} = require('../util/economy');
 
 module.exports = {
   name: "pay-fine",
@@ -12,17 +21,17 @@ module.exports = {
   },
   options: [
     {
-      name: "civilian",
-      description: "Civilian who received the fine",
+      name: "fine",
+      description: "The fine to pay",
       type: CommandOptions.String,
       required: true,
       autocomplete: true,
     },
     {
-      name: "fine",
-      description: "The fine to pay",
+      name: "civilian",
+      description: "Override your active civilian for this run",
       type: CommandOptions.String,
-      required: true,
+      required: false,
       autocomplete: true,
     },
   ],
@@ -47,7 +56,8 @@ module.exports = {
         }
       }
       if (focused.name === 'fine') {
-        const civilianId = (findOption(interaction.data.options, 'civilian') || {}).value;
+        const explicitId = (findOption(interaction.data.options, 'civilian') || {}).value || '';
+        const civilianId = await resolveCivilianId(client, userId, communityId, explicitId);
         if (!civilianId) return interaction.respond([]);
         try {
           const choices = await fetchInboxChoices(
@@ -90,11 +100,13 @@ module.exports = {
           `/api/v2/economy/inbox/${encodeURIComponent(fineId)}/pay?userId=${encodeURIComponent(userId)}`,
         );
 
+        const civName = (await lookupCivilianName(client, item.civilianId)) || 'Unknown';
         const embed = new EmbedBuilder()
           .setColor('#38bdf8')
           .setAuthor({ name: 'Fine Paid', iconURL: client.config.IconURL })
           .setTitle(item.title || item.type || 'Paid')
           .addFields(
+            { name: '**Civilian**', value: `\`${civName}\``, inline: true },
             { name: '**Amount**', value: `\`${formatMoney(item.amount)}\``, inline: true },
             { name: '**Status**', value: `\`${item.status || 'paid'}\``, inline: true },
           );

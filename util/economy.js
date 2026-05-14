@@ -66,6 +66,54 @@ async function getLpcUser(client, discordUserId) {
     .findOne({ "user.discord.id": discordUserId });
 }
 
+const ACTIVE_CIV_COLLECTION = 'bot_active_civilians';
+
+/**
+ * Read the persisted "active civilian" the user picked via /set-active-civilian
+ * for the given community. Returns null when not set.
+ */
+async function getActiveCivilianId(client, userId, communityId) {
+  const doc = await client.dbo
+    .collection(ACTIVE_CIV_COLLECTION)
+    .findOne({ userId, communityId });
+  return doc && doc.civilianId ? doc.civilianId : null;
+}
+
+/**
+ * Persist the user's active civilian for a community. Upsert on (userId, communityId).
+ */
+async function setActiveCivilianId(client, userId, communityId, civilianId) {
+  return client.dbo.collection(ACTIVE_CIV_COLLECTION).updateOne(
+    { userId, communityId },
+    {
+      $set: { userId, communityId, civilianId, updatedAt: new Date() },
+    },
+    { upsert: true },
+  );
+}
+
+/**
+ * Resolve the civilian to act on. Returns the explicit pick if provided,
+ * otherwise the user's saved active civilian for the community, otherwise null.
+ */
+async function resolveCivilianId(client, userId, communityId, explicitId) {
+  if (explicitId) return explicitId;
+  return getActiveCivilianId(client, userId, communityId);
+}
+
+/**
+ * Look up a civilian's name by id from the civilians collection. Returns null
+ * when not found / id is invalid.
+ */
+async function lookupCivilianName(client, civilianId) {
+  if (!civilianId) return null;
+  const ObjectId = require('mongodb').ObjectId;
+  let oid;
+  try { oid = new ObjectId(civilianId); } catch (_) { return null; }
+  const doc = await client.dbo.collection('civilians').findOne({ _id: oid });
+  return doc ? civilianName(doc) : null;
+}
+
 /**
  * List a user's civilians in a community via the v2 API.
  */
@@ -89,6 +137,19 @@ async function civilianAutocomplete(client, userId, communityId, query) {
     .map((c) => ({ name: civilianName(c), value: c._id.toString() }))
     .filter((c) => !q || c.name.toLowerCase().includes(q))
     .slice(0, 25);
+}
+
+/**
+ * Returns true when community-level economy is enabled. Reads Mongo directly.
+ */
+async function isCommunityEconomyEnabled(client, communityId) {
+  const ObjectId = require('mongodb').ObjectId;
+  let oid;
+  try { oid = new ObjectId(communityId); } catch (_) { return false; }
+  const community = await client.dbo.collection('communities').findOne({ _id: oid });
+  if (!community) return false;
+  const cd = community.community || {};
+  return !!(cd.economy && cd.economy.enabled === true);
 }
 
 /**
@@ -176,4 +237,9 @@ module.exports = {
   listClockableDepartments,
   listUserCivilians,
   civilianAutocomplete,
+  getActiveCivilianId,
+  setActiveCivilianId,
+  resolveCivilianId,
+  lookupCivilianName,
+  isCommunityEconomyEnabled,
 };

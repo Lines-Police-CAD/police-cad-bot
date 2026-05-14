@@ -1,20 +1,11 @@
 const { EmbedBuilder } = require('discord.js');
 const { apiRequest } = require('../util/api');
-const { formatMoney, formatDuration, getLpcUser, civilianName } = require('../util/economy');
-const ObjectId = require('mongodb').ObjectId;
+const { formatMoney, formatDuration, getLpcUser, lookupCivilianName } = require('../util/economy');
 
 async function findActiveSessionForUser(client, userId) {
   return client.dbo
     .collection('clock_sessions')
     .findOne({ status: 'active', userId });
-}
-
-async function lookupCivilianName(client, civilianId) {
-  if (!civilianId) return null;
-  let oid;
-  try { oid = new ObjectId(civilianId); } catch (_) { return null; }
-  const doc = await client.dbo.collection('civilians').findOne({ _id: oid });
-  return doc ? civilianName(doc) : null;
 }
 
 module.exports = {

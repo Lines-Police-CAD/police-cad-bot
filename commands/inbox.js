@@ -1,7 +1,16 @@
 const { EmbedBuilder } = require('discord.js');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 const { apiRequest } = require('../util/api');
-const { formatMoney, formatDueDate, getLpcUser, findOption, getFocusedOption, civilianAutocomplete } = require('../util/economy');
+const {
+  formatMoney,
+  formatDueDate,
+  getLpcUser,
+  findOption,
+  getFocusedOption,
+  civilianAutocomplete,
+  resolveCivilianId,
+  lookupCivilianName,
+} = require('../util/economy');
 
 const STATUS_LABEL = {
   pending: 'Pending',
@@ -21,9 +30,9 @@ module.exports = {
   options: [
     {
       name: "civilian",
-      description: "Civilian whose inbox to view",
+      description: "Override your active civilian for this run",
       type: CommandOptions.String,
-      required: true,
+      required: false,
       autocomplete: true,
     },
     {
@@ -75,23 +84,29 @@ module.exports = {
       if (!user.user.lastAccessedCommunity || !user.user.lastAccessedCommunity.communityID)
         return interaction.send({ content: `You must join a community to use this command.`, flags: (1 << 6) });
 
+      const userId = user._id.toString();
       const communityId = user.user.lastAccessedCommunity.communityID;
-      const civilianId = (findOption(args, 'civilian') || {}).value;
+      const explicitId = (findOption(args, 'civilian') || {}).value || '';
       const status = (findOption(args, 'status') || {}).value || 'pending';
 
-      if (!civilianId)
-        return interaction.send({ content: `Please pick a civilian.`, flags: (1 << 6) });
-
       await interaction.defer();
+
+      const civilianId = await resolveCivilianId(client, userId, communityId, explicitId);
+      if (!civilianId) {
+        return interaction.editOriginal({ content: `No civilian selected. Run \`/set-active-civilian\` or pass \`civilian:\` on this command.` });
+      }
 
       try {
         const path = `/api/v2/economy/inbox?civilianId=${encodeURIComponent(civilianId)}&communityId=${encodeURIComponent(communityId)}&limit=25` +
           (status === 'all' ? '' : `&status=${encodeURIComponent(status)}`);
-        const res = await apiRequest(client, 'GET', path);
+        const [res, civName] = await Promise.all([
+          apiRequest(client, 'GET', path),
+          lookupCivilianName(client, civilianId),
+        ]);
         const items = (res && res.data) || [];
 
         if (items.length === 0) {
-          return interaction.editOriginal({ content: `No items found for status \`${status}\`.` });
+          return interaction.editOriginal({ content: `No items found for \`${civName || 'this civilian'}\` with status \`${status}\`.` });
         }
 
         const lines = items.slice(0, 10).map((i) => {
@@ -106,6 +121,7 @@ module.exports = {
           .setColor('#38bdf8')
           .setAuthor({ name: 'Inbox', iconURL: client.config.IconURL })
           .setTitle(`${totalCount} ${status === 'all' ? 'item(s)' : status + ' item(s)'}`)
+          .addFields({ name: '**Civilian**', value: `\`${civName || 'Unknown'}\``, inline: true })
           .setDescription(lines.join('\n'))
           .setFooter({ text: `Use /pay-fine or /contest-fine with the full ID (or pick from autocomplete).` });
 

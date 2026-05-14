@@ -1,25 +1,19 @@
 const { EmbedBuilder } = require('discord.js');
-const ObjectId = require('mongodb').ObjectId;
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 const { apiRequest } = require('../util/api');
-const { formatMoney, getLpcUser, findOption, getFocusedOption, civilianName, listClockableDepartments } = require('../util/economy');
+const {
+  formatMoney,
+  getLpcUser,
+  findOption,
+  getFocusedOption,
+  civilianAutocomplete,
+  listClockableDepartments,
+  resolveCivilianId,
+  lookupCivilianName,
+  isCommunityEconomyEnabled,
+} = require('../util/economy');
 
-async function lookupCivilianName(client, civilianId) {
-  if (!civilianId) return null;
-  let oid;
-  try { oid = new ObjectId(civilianId); } catch (_) { return null; }
-  const doc = await client.dbo.collection('civilians').findOne({ _id: oid });
-  return doc ? civilianName(doc) : null;
-}
-
-async function listUserCivilians(client, userId, communityId) {
-  const res = await apiRequest(
-    client,
-    'GET',
-    `/api/v2/civilians/user/${userId}?active_community_id=${encodeURIComponent(communityId)}&limit=50`
-  );
-  return (res && res.data) || [];
-}
+const NO_DEPT_HELP = `You don't have any departments you can clock into. This usually means you aren't an approved member of any economy-enabled department, or your community's economy is turned off. Ask your community admin to confirm your membership and that the department has economy enabled.`;
 
 module.exports = {
   name: "clock-in",
@@ -38,9 +32,9 @@ module.exports = {
     },
     {
       name: "civilian",
-      description: "Civilian to clock in as",
+      description: "Override your active civilian for this shift",
       type: CommandOptions.String,
-      required: true,
+      required: false,
       autocomplete: true,
     },
   ],
@@ -54,10 +48,10 @@ module.exports = {
       const communityId = user.user.lastAccessedCommunity.communityID;
       const focused = getFocusedOption(interaction.data.options);
       if (!focused) return interaction.respond([]);
-      const q = (focused.value || '').toLowerCase();
 
       try {
         if (focused.name === 'department') {
+          const q = (focused.value || '').toLowerCase();
           const depts = await listClockableDepartments(client, communityId, userId);
           const choices = depts
             .map((d) => ({ name: d.name || 'Unnamed Department', value: String(d._id) }))
@@ -66,11 +60,7 @@ module.exports = {
           return interaction.respond(choices);
         }
         if (focused.name === 'civilian') {
-          const civs = await listUserCivilians(client, userId, communityId);
-          const choices = civs
-            .map((c) => ({ name: civilianName(c), value: c._id.toString() }))
-            .filter((c) => !q || c.name.toLowerCase().includes(q))
-            .slice(0, 25);
+          const choices = await civilianAutocomplete(client, userId, communityId, focused.value);
           return interaction.respond(choices);
         }
         return interaction.respond([]);
@@ -96,28 +86,40 @@ module.exports = {
       const userId = user._id.toString();
       const communityId = user.user.lastAccessedCommunity.communityID;
       const departmentId = (findOption(args, 'department') || {}).value;
-      const civilianId = (findOption(args, 'civilian') || {}).value || '';
+      const explicitId = (findOption(args, 'civilian') || {}).value || '';
 
       if (!departmentId)
         return interaction.send({ content: `Please pick a department to clock into.`, flags: (1 << 6) });
-      if (!civilianId)
-        return interaction.send({ content: `Please pick a civilian to clock in as.`, flags: (1 << 6) });
 
       await interaction.defer();
 
-      try {
-        const body = { communityId, departmentId };
-        if (civilianId) body.civilianId = civilianId;
+      if (!(await isCommunityEconomyEnabled(client, communityId))) {
+        return interaction.editOriginal({ content: `Economy is not enabled in your community. Ask your community admin to enable this.` });
+      }
 
+      const eligible = await listClockableDepartments(client, communityId, userId);
+      if (eligible.length === 0) {
+        return interaction.editOriginal({ content: NO_DEPT_HELP });
+      }
+      if (!eligible.some((d) => String(d._id) === departmentId)) {
+        return interaction.editOriginal({ content: NO_DEPT_HELP });
+      }
+
+      const civilianId = await resolveCivilianId(client, userId, communityId, explicitId);
+      if (!civilianId) {
+        return interaction.editOriginal({ content: `No civilian selected. Run \`/set-active-civilian\` or pass \`civilian:\` on this command.` });
+      }
+
+      try {
         const session = await apiRequest(
           client,
           'POST',
           `/api/v2/economy/clock-in?userId=${encodeURIComponent(userId)}`,
-          body,
+          { communityId, departmentId, civilianId },
         );
 
         const rate = session.payRateSnapshot ? `${formatMoney(session.payRateSnapshot)}/hr` : 'unknown';
-        const civName = (await lookupCivilianName(client, session.civilianId)) || 'User-level shift';
+        const civName = (await lookupCivilianName(client, session.civilianId)) || 'Unknown';
         const embed = new EmbedBuilder()
           .setColor('#38bdf8')
           .setAuthor({ name: 'Clocked In', iconURL: client.config.IconURL })
@@ -137,7 +139,7 @@ module.exports = {
         if (msg.includes('(409)'))
           return interaction.editOriginal({ content: `You already have an active shift. Use \`/clock-out\` first.` });
         if (msg.includes('(403)'))
-          return interaction.editOriginal({ content: `You don't have access to that department, or its economy is disabled.` });
+          return interaction.editOriginal({ content: NO_DEPT_HELP });
         if (msg.includes('(404)'))
           return interaction.editOriginal({ content: `Department not found.` });
         return interaction.editOriginal({ content: `Failed to clock in. Please try again.` });

@@ -1,7 +1,17 @@
 const { EmbedBuilder } = require('discord.js');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 const { apiRequest } = require('../util/api');
-const { formatMoney, formatDueDate, getLpcUser, findOption, getFocusedOption, fetchInboxChoices, civilianAutocomplete } = require('../util/economy');
+const {
+  formatMoney,
+  formatDueDate,
+  getLpcUser,
+  findOption,
+  getFocusedOption,
+  fetchInboxChoices,
+  civilianAutocomplete,
+  resolveCivilianId,
+  lookupCivilianName,
+} = require('../util/economy');
 
 module.exports = {
   name: "contest-fine",
@@ -11,13 +21,6 @@ module.exports = {
     member: [],
   },
   options: [
-    {
-      name: "civilian",
-      description: "Civilian who received the fine",
-      type: CommandOptions.String,
-      required: true,
-      autocomplete: true,
-    },
     {
       name: "fine",
       description: "The fine to contest",
@@ -30,6 +33,13 @@ module.exports = {
       description: "Why you're contesting this fine",
       type: CommandOptions.String,
       required: true,
+    },
+    {
+      name: "civilian",
+      description: "Override your active civilian for this run",
+      type: CommandOptions.String,
+      required: false,
+      autocomplete: true,
     },
   ],
   Autocomplete: {
@@ -53,7 +63,8 @@ module.exports = {
         }
       }
       if (focused.name === 'fine') {
-        const civilianId = (findOption(interaction.data.options, 'civilian') || {}).value;
+        const explicitId = (findOption(interaction.data.options, 'civilian') || {}).value || '';
+        const civilianId = await resolveCivilianId(client, userId, communityId, explicitId);
         if (!civilianId) return interaction.respond([]);
         try {
           const choices = await fetchInboxChoices(
@@ -99,11 +110,13 @@ module.exports = {
           { reason },
         );
 
+        const civName = (await lookupCivilianName(client, item.civilianId)) || 'Unknown';
         const embed = new EmbedBuilder()
           .setColor('#38bdf8')
           .setAuthor({ name: 'Fine Contested', iconURL: client.config.IconURL })
           .setTitle(item.title || item.type || 'Contested')
           .addFields(
+            { name: '**Civilian**', value: `\`${civName}\``, inline: true },
             { name: '**Amount**', value: `\`${formatMoney(item.amount)}\``, inline: true },
             { name: '**New Due Date**', value: `\`${formatDueDate(item.dueAt)}\``, inline: true },
             { name: '**Reason**', value: `\`${reason.slice(0, 1000)}\`` },

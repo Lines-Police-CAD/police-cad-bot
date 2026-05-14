@@ -1,7 +1,18 @@
 const { EmbedBuilder } = require('discord.js');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 const { apiRequest } = require('../util/api');
-const { formatMoney, formatDuration, formatDueDate, getLpcUser, findOption, getFocusedOption, civilianName } = require('../util/economy');
+const {
+  formatMoney,
+  formatDuration,
+  formatDueDate,
+  getLpcUser,
+  findOption,
+  getFocusedOption,
+  civilianAutocomplete,
+  resolveCivilianId,
+  lookupCivilianName,
+  isCommunityEconomyEnabled,
+} = require('../util/economy');
 
 const STATUS_LABEL = {
   pending: 'Pending',
@@ -10,15 +21,6 @@ const STATUS_LABEL = {
   paid: 'Paid',
   dismissed: 'Dismissed',
 };
-
-async function listUserCivilians(client, userId, communityId) {
-  const res = await apiRequest(
-    client,
-    'GET',
-    `/api/v2/civilians/user/${userId}?active_community_id=${encodeURIComponent(communityId)}&limit=50`
-  );
-  return (res && res.data) || [];
-}
 
 module.exports = {
   name: "wallet",
@@ -30,7 +32,7 @@ module.exports = {
   options: [
     {
       name: "civilian",
-      description: "Civilian whose wallet to view (defaults to your only civilian)",
+      description: "Override your active civilian for this run",
       type: CommandOptions.String,
       required: false,
       autocomplete: true,
@@ -44,13 +46,13 @@ module.exports = {
       }
       const focused = getFocusedOption(interaction.data.options);
       if (!focused || focused.name !== 'civilian') return interaction.respond([]);
-      const q = (focused.value || '').toLowerCase();
       try {
-        const civs = await listUserCivilians(client, user._id.toString(), user.user.lastAccessedCommunity.communityID);
-        const choices = civs
-          .map((c) => ({ name: civilianName(c), value: c._id.toString() }))
-          .filter((c) => !q || c.name.toLowerCase().includes(q))
-          .slice(0, 25);
+        const choices = await civilianAutocomplete(
+          client,
+          user._id.toString(),
+          user.user.lastAccessedCommunity.communityID,
+          focused.value,
+        );
         return interaction.respond(choices);
       } catch (err) {
         client.error(`/wallet autocomplete: ${err.message}`);
@@ -73,26 +75,24 @@ module.exports = {
 
       const userId = user._id.toString();
       const communityId = user.user.lastAccessedCommunity.communityID;
+      const explicitId = (findOption(args, 'civilian') || {}).value || '';
 
       await interaction.defer();
 
       try {
-        let civilianId = (findOption(args, 'civilian') || {}).value || '';
-        if (!civilianId) {
-          const civs = await listUserCivilians(client, userId, communityId);
-          if (civs.length === 0) {
-            return interaction.editOriginal({ content: `You don't have any civilians in your active community.` });
-          }
-          if (civs.length > 1) {
-            const names = civs.slice(0, 10).map((c) => `\`${civilianName(c)}\``).join(', ');
-            return interaction.editOriginal({ content: `You have multiple civilians. Re-run \`/wallet\` and pick one: ${names}` });
-          }
-          civilianId = civs[0]._id.toString();
+        if (!(await isCommunityEconomyEnabled(client, communityId))) {
+          return interaction.editOriginal({ content: `Economy is not enabled in your community. Ask your community admin to enable this.` });
         }
 
-        const [wallet, activeSession] = await Promise.all([
+        const civilianId = await resolveCivilianId(client, userId, communityId, explicitId);
+        if (!civilianId) {
+          return interaction.editOriginal({ content: `No civilian selected. Run \`/set-active-civilian\` or pass \`civilian:\` on this command.` });
+        }
+
+        const [wallet, activeSession, civName] = await Promise.all([
           apiRequest(client, 'GET', `/api/v2/economy/wallet/${civilianId}`),
           apiRequest(client, 'GET', `/api/v2/economy/session/active?civilianId=${encodeURIComponent(civilianId)}`).catch(() => null),
+          lookupCivilianName(client, civilianId),
         ]);
 
         const recent = wallet.recentInbox || [];
@@ -103,6 +103,7 @@ module.exports = {
           .setAuthor({ name: 'Wallet', iconURL: client.config.IconURL })
           .setTitle(formatMoney(wallet.balance))
           .addFields(
+            { name: '**Civilian**', value: `\`${civName || 'Unknown'}\``, inline: true },
             { name: '**Pending Items**', value: `\`${pending.length}\``, inline: true },
           );
 

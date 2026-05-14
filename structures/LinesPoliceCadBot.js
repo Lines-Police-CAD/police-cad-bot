@@ -35,6 +35,34 @@ class LinesPoliceCadBot extends Client {
     // });
 
     this.ws.on("INTERACTION_CREATE", async (interaction) => {
+      // APPLICATION_COMMAND_AUTOCOMPLETE
+      if (interaction.type === 4) {
+        const command = interaction.data.name.toLowerCase();
+        const cmd = client.commands.get(command);
+        if (!cmd || !cmd.Autocomplete || typeof cmd.Autocomplete.run !== "function") {
+          return;
+        }
+        interaction.respond = async (choices) => {
+          const rest = new REST({ version: "10" }).setToken(client.config.Token);
+          return await rest.post(
+            Routes.interactionCallback(interaction.id, interaction.token),
+            {
+              body: {
+                type: 8, // APPLICATION_COMMAND_AUTOCOMPLETE_RESULT
+                data: { choices: (choices || []).slice(0, 25) },
+              },
+            },
+          );
+        };
+        try {
+          await cmd.Autocomplete.run(this, interaction);
+        } catch (err) {
+          this.error(`Autocomplete error (${command}): ${err && err.message ? err.message : err}`);
+          try { await interaction.respond([]); } catch (_) {}
+        }
+        return;
+      }
+
       if (interaction.type != 3) {
         let GuildDB = await this.GetGuild(interaction.guild_id);
 

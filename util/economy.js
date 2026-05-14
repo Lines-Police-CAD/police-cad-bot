@@ -67,6 +67,33 @@ async function getLpcUser(client, discordUserId) {
 }
 
 /**
+ * List the departments a user can /clock-in to. Filters to:
+ *  - community.economy.enabled === true
+ *  - department.economyEnabled === true
+ *  - public department (approvalRequired === false) OR user is approved member
+ *
+ * Reads directly from Mongo since the v2 `/my-departments` endpoint does not
+ * expose economy fields.
+ */
+async function listClockableDepartments(client, communityId, userId) {
+  const ObjectId = require('mongodb').ObjectId;
+  let oid;
+  try { oid = new ObjectId(communityId); } catch (_) { return []; }
+  const community = await client.dbo.collection('communities').findOne({ _id: oid });
+  if (!community) return [];
+  const cd = community.community || {};
+  if (!cd.economy || cd.economy.enabled !== true) return [];
+  const departments = cd.departments || [];
+
+  return departments.filter((d) => {
+    if (!d.economyEnabled) return false;
+    if (!d.approvalRequired) return true;
+    const members = d.members || [];
+    return members.some((m) => m.userID === userId && m.status === 'approved');
+  });
+}
+
+/**
  * Resolve a civilian's display name. Older docs only have `name`; newer ones
  * have `firstName`/`lastName`.
  */
@@ -121,4 +148,5 @@ module.exports = {
   getLpcUser,
   fetchInboxChoices,
   civilianName,
+  listClockableDepartments,
 };

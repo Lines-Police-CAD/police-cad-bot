@@ -1,22 +1,13 @@
 const { EmbedBuilder } = require('discord.js');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 const { apiRequest } = require('../util/api');
-const { formatMoney, getLpcUser, findOption, getFocusedOption, civilianName } = require('../util/economy');
+const { formatMoney, getLpcUser, findOption, getFocusedOption, civilianName, listClockableDepartments } = require('../util/economy');
 
 async function listUserCivilians(client, userId, communityId) {
   const res = await apiRequest(
     client,
     'GET',
     `/api/v2/civilians/user/${userId}?active_community_id=${encodeURIComponent(communityId)}&limit=50`
-  );
-  return (res && res.data) || [];
-}
-
-async function listUserDepartments(client, communityId, userId) {
-  const res = await apiRequest(
-    client,
-    'GET',
-    `/api/v2/community/${communityId}/my-departments?userId=${encodeURIComponent(userId)}&limit=50`
   );
   return (res && res.data) || [];
 }
@@ -58,7 +49,7 @@ module.exports = {
 
       try {
         if (focused.name === 'department') {
-          const depts = await listUserDepartments(client, communityId, userId);
+          const depts = await listClockableDepartments(client, communityId, userId);
           const choices = depts
             .map((d) => ({ name: d.name || 'Unnamed Department', value: String(d._id) }))
             .filter((c) => !q || c.name.toLowerCase().includes(q))

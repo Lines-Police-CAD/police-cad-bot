@@ -114,10 +114,9 @@
     <section id="setup" class="section">
       <header class="section-head">
         <span class="eyebrow"><span class="live-dot"></span>02 · INITIATE LINK</span>
-        <h2 class="h2">Get the bot online in three steps</h2>
+        <h2 class="h2">Get the bot online in five steps</h2>
         <p class="section-sub">
-          Total time: under 2 minutes. Full walkthrough also lives on
-          <a href="https://www.linespolice-cad.com/discord-bot" target="_blank" rel="noreferrer">linespolice-cad.com/discord-bot</a>.
+          Each step calls out the most common error you'll hit and how to clear it. Total time: under 10 minutes.
         </p>
       </header>
 
@@ -125,56 +124,65 @@
         <li class="step">
           <span class="step-num">01/</span>
           <div class="step-body">
-            <h3>Add the bot to your Discord server</h3>
+            <h3>Add the bot to your server</h3>
             <p>
-              Click the button below to invite the Lines Police CAD bot. You'll need
-              <strong>Manage Server</strong> on Discord to install bots there.
+              Open the invite link from <a href="https://linespolice-cad.com" target="_blank" rel="noreferrer">linespolice-cad.com</a>
+              and select your guild. Discord will ask for the permissions <code class="kbd-inline">View Channel</code>,
+              <code class="kbd-inline">Send Messages</code>, and <code class="kbd-inline">Embed Links</code> — all required.
             </p>
-            <p class="step-cta">
-              <a class="btn btn-primary" href="https://discord.com/api/oauth2/authorize?client_id=1005557484271976569&permissions=8&scope=bot%20applications.commands" target="_blank" rel="noreferrer">
-                Add Bot to Server <span aria-hidden="true">→</span>
-              </a>
+            <p class="step-tip">
+              <span class="tip-tag">TIP</span>
+              You'll need <strong>Manage Server</strong> on your own Discord account to install bots in that guild.
             </p>
           </div>
         </li>
         <li class="step">
           <span class="step-num">02/</span>
           <div class="step-body">
-            <h3>Authorize the bot</h3>
+            <h3>Connect your Discord to Lines Police CAD</h3>
             <p>
-              Pick the Discord server you want it in, then click <strong>Authorize</strong>.
-              Discord will add the bot with the permissions it needs to post embeds and run slash commands.
+              Sign in at <a href="https://linespolice-cad.com" target="_blank" rel="noreferrer">linespolice-cad.com</a>,
+              open <em>Account → Connections</em>, and link Discord. Without this, every command replies with
+              <code class="kbd-inline">You are not logged in.</code>
             </p>
           </div>
         </li>
         <li class="step">
           <span class="step-num">03/</span>
           <div class="step-body">
-            <h3>Connect your account</h3>
+            <h3>Join an active community</h3>
             <p>
-              Open your <a href="https://www.linespolice-cad.com/profile" target="_blank" rel="noreferrer">LPC profile</a>
-              and click <strong>Connect Discord</strong> to link your account. Every member who wants to run commands
-              has to do this for themselves.
+              Dispatch, panic, search, and the economy stack all run against your active community. Join one on the website;
+              the bot reads it on the fly.
             </p>
             <p class="step-tip step-tip-warn">
               <span class="tip-tag tip-tag-warn">WATCH FOR</span>
-              <code class="kbd-inline">You are not logged in.</code> — that error means this step isn't done yet.
+              <code class="kbd-inline">You must join a community to use this command.</code>
+            </p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-num">04/</span>
+          <div class="step-body">
+            <h3>Lock down channels &amp; roles <span class="optional">optional</span></h3>
+            <p>
+              Run <code class="kbd-inline">/channels set channel:#dispatch</code> to scope the bot to a specific channel,
+              and <code class="kbd-inline">/roles set role:@Officer</code> to gate commands behind a Discord role.
+              Both require the caller to have <em>Manage Server</em>.
+            </p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-num">05/</span>
+          <div class="step-body">
+            <h3>Run <code class="kbd-inline">/help</code> and you're live</h3>
+            <p>
+              Type <code class="kbd-inline">/</code> in any allowed channel — every command in the table below should now
+              appear in Discord's autocomplete. Hit <code class="kbd-inline">/panic</code> to confirm the round-trip.
             </p>
           </div>
         </li>
       </ol>
-
-      <aside class="next-steps">
-        <p class="eyebrow"><span class="live-dot"></span>NEXT · OPTIONAL</p>
-        <h3>Tune it for your server</h3>
-        <p>Once the bot is running, server admins can lock it down further:</p>
-        <ul>
-          <li><code class="kbd-inline">/channels set channel:#dispatch</code> — restrict the bot to a specific channel</li>
-          <li><code class="kbd-inline">/roles set role:@Officer</code> — gate commands behind a Discord role</li>
-          <li><code class="kbd-inline">/ping-on-panic toggle toggle:True role:@Dispatchers</code> — ping a role on panic / Signal 100</li>
-        </ul>
-        <p class="next-steps-foot">Each of these requires <em>Manage Server</em> on Discord.</p>
-      </aside>
     </section>
 
     <!-- ============================================ COMMANDS -->
@@ -266,22 +274,22 @@
         <h2 class="h2">Need a hand? We're on the radio.</h2>
       </header>
       <div class="support-grid">
-        <a class="support-card" href="https://discord.gg/Y9ytW2ZMp4" target="_blank" rel="noreferrer">
-          <span class="support-eyebrow">Live chat</span>
-          <span class="support-title">Join the Discord</span>
-          <span class="support-sub">Real-time help from the team and other community owners.</span>
+        <a class="support-card" href="https://linespolice-cad.com" target="_blank" rel="noreferrer">
+          <span class="support-eyebrow">Primary</span>
+          <span class="support-title">linespolice-cad.com</span>
+          <span class="support-sub">Open the website for account, community, and billing support.</span>
           <span class="support-arrow" aria-hidden="true">→</span>
         </a>
-        <a class="support-card" href="https://www.linespolice-cad.com/feature-requests/new" target="_blank" rel="noreferrer">
-          <span class="support-eyebrow">Got an idea?</span>
-          <span class="support-title">Request a feature</span>
-          <span class="support-sub">Suggest a new command, integration, or quality-of-life improvement.</span>
+        <a class="support-card" href="https://github.com/Lines-Police-CAD/police-cad-bot/issues" target="_blank" rel="noreferrer">
+          <span class="support-eyebrow">Bugs &amp; ideas</span>
+          <span class="support-title">GitHub Issues</span>
+          <span class="support-sub">Found something broken or have a feature request? File it here.</span>
           <span class="support-arrow" aria-hidden="true">→</span>
         </a>
-        <a class="support-card" href="https://github.com/Linesmerrill/police-cad/issues/new?assignees=&labels=&template=bug_report.md&title=" target="_blank" rel="noreferrer">
-          <span class="support-eyebrow">Something broken?</span>
-          <span class="support-title">Report a bug</span>
-          <span class="support-sub">File it on GitHub — auto-tagged and routed to the right repo.</span>
+        <a class="support-card" href="https://linespolice-cad.com" target="_blank" rel="noreferrer">
+          <span class="support-eyebrow">Support</span>
+          <span class="support-title">Contact us</span>
+          <span class="support-sub">Email and Discord support links live on the website footer.</span>
           <span class="support-arrow" aria-hidden="true">→</span>
         </a>
       </div>

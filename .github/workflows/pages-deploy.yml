@@ -1,0 +1,72 @@
+name: pages-deploy
+
+# Two ways this workflow runs:
+#   1. push to main → auto-deploy to bot.linespolice-cad.com
+#   2. manual run (Actions → "pages-deploy" → Run workflow → pick a branch)
+#      → deploy that branch to bot.linespolice-cad.com for testing.
+#         Production stays overwritten until you redeploy main.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build site (${{ github.ref_name }})
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Regenerate docs/commands.json from current source
+        run: node scripts/build-docs.js
+
+      - name: Annotate what's being deployed
+        run: |
+          {
+            echo "### Deploying to bot.linespolice-cad.com"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| **Branch** | \`${GITHUB_REF_NAME}\` |"
+            echo "| **Commit** | \`${GITHUB_SHA:0:7}\` |"
+            echo "| **Triggered by** | ${GITHUB_EVENT_NAME} |"
+            if [ "${GITHUB_REF_NAME}" != "main" ]; then
+              echo ""
+              echo "> :warning: This is a **preview deploy from a non-main branch**. Production will stay on this branch until you re-deploy \`main\`."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

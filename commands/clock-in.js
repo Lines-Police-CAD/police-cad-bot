@@ -1,7 +1,16 @@
 const { EmbedBuilder } = require('discord.js');
+const ObjectId = require('mongodb').ObjectId;
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 const { apiRequest } = require('../util/api');
 const { formatMoney, getLpcUser, findOption, getFocusedOption, civilianName, listClockableDepartments } = require('../util/economy');
+
+async function lookupCivilianName(client, civilianId) {
+  if (!civilianId) return null;
+  let oid;
+  try { oid = new ObjectId(civilianId); } catch (_) { return null; }
+  const doc = await client.dbo.collection('civilians').findOne({ _id: oid });
+  return doc ? civilianName(doc) : null;
+}
 
 async function listUserCivilians(client, userId, communityId) {
   const res = await apiRequest(
@@ -106,11 +115,13 @@ module.exports = {
         );
 
         const rate = session.payRateSnapshot ? `${formatMoney(session.payRateSnapshot)}/hr` : 'unknown';
+        const civName = (await lookupCivilianName(client, session.civilianId)) || 'User-level shift';
         const embed = new EmbedBuilder()
           .setColor('#38bdf8')
           .setAuthor({ name: 'Clocked In', iconURL: client.config.IconURL })
           .setTitle(session.departmentName || 'On Duty')
           .addFields(
+            { name: '**Civilian**', value: `\`${civName}\``, inline: true },
             { name: '**Pay Rate**', value: `\`${rate}\``, inline: true },
             { name: '**Mode**', value: `\`${session.payoutMode || 'on_clockout'}\``, inline: true },
             { name: '**Max Session**', value: `\`${session.maxSessionMinutes || 120}m\``, inline: true },

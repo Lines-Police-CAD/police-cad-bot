@@ -1,0 +1,747 @@
+{
+  "generatedAt": null,
+  "sourceFiles": 23,
+  "commands": [
+    {
+      "name": "account",
+      "description": "View connected Lines Police CAD account",
+      "category": "Account",
+      "usage": "",
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": []
+    },
+    {
+      "name": "case",
+      "description": "Look up a court case by its case number",
+      "category": "Lookup",
+      "usage": "<case_number>",
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "case_number",
+          "description": "Case number, e.g. CC-2026-000042",
+          "type": "String",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "channels",
+      "description": "View and manage channels the bot may be used in",
+      "category": "Admin",
+      "usage": "[opt]",
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "view",
+          "description": "View allowed channels",
+          "type": "SubCommand",
+          "required": false
+        },
+        {
+          "name": "set",
+          "description": "Add a channel to allowed channels list",
+          "type": "SubCommand",
+          "required": false,
+          "options": [
+            {
+              "name": "channel",
+              "description": "Channel to add to allowed channles",
+              "type": "Channel",
+              "required": true
+            }
+          ]
+        },
+        {
+          "name": "remove",
+          "description": "Remove channel from allowed channels",
+          "type": "SubCommand",
+          "required": false,
+          "options": [
+            {
+              "name": "channel",
+              "description": "Channel to remove from allowed channles",
+              "type": "Channel",
+              "required": true
+            }
+          ]
+        },
+        {
+          "name": "reset",
+          "description": "Reset allowed channels",
+          "type": "SubCommand",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "check-status",
+      "description": "Check your own or another officer status",
+      "category": "Dispatch",
+      "usage": "[user]",
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "user",
+          "description": "Discord Username",
+          "type": "User",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "clock-in",
+      "description": "Start an on-duty shift to earn pay",
+      "category": "Economy",
+      "usage": null,
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "department",
+          "description": "Department to clock into",
+          "type": "String",
+          "required": true
+        },
+        {
+          "name": "civilian",
+          "description": "Override your active civilian for this shift",
+          "type": "String",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "clock-out",
+      "description": "End your active shift",
+      "category": "Economy",
+      "usage": null,
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": []
+    },
+    {
+      "name": "community",
+      "description": "Manage your community",
+      "category": "Community",
+      "usage": "[opt]",
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "view",
+          "description": "Check your active community",
+          "type": "SubCommand",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "contest-fine",
+      "description": "Contest a pending fine; extends its due date until a judge rules",
+      "category": "Economy",
+      "usage": null,
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "fine",
+          "description": "The fine to contest",
+          "type": "String",
+          "required": true
+        },
+        {
+          "name": "reason",
+          "description": "Why you're contesting this fine",
+          "type": "String",
+          "required": true
+        },
+        {
+          "name": "civilian",
+          "description": "Override your active civilian for this run",
+          "type": "String",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "debug",
+      "description": "Debug for bot admin",
+      "category": "Debug",
+      "usage": "command",
+      "debug": true,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "command",
+          "description": "The debug command to execute",
+          "type": "String",
+          "required": true,
+          "choices": [
+            {
+              "name": "guild",
+              "value": "guild"
+            },
+            {
+              "name": "interaction",
+              "value": "interaction"
+            },
+            {
+              "name": "pingserver",
+              "value": "pingserver"
+            }
+          ]
+        },
+        {
+          "name": "consoleoutput",
+          "description": "Output debug messages to console (deault=false)",
+          "type": "Boolean",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "disconnect-account",
+      "description": "Disconnect your Discord account from the Lines Police CAD Database",
+      "category": "Account",
+      "usage": "",
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": []
+    },
+    {
+      "name": "help",
+      "description": "Get information on a specific command",
+      "category": "Info",
+      "usage": "[command]",
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "command",
+          "description": "Get information on a specific command",
+          "type": "String",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "inbox",
+      "description": "List your fines, fees, and other financial items",
+      "category": "Economy",
+      "usage": null,
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "civilian",
+          "description": "Override your active civilian for this run",
+          "type": "String",
+          "required": false
+        },
+        {
+          "name": "status",
+          "description": "Filter by status (default: pending)",
+          "type": "String",
+          "required": false,
+          "choices": [
+            {
+              "name": "Pending",
+              "value": "pending"
+            },
+            {
+              "name": "Contested",
+              "value": "contested"
+            },
+            {
+              "name": "Delinquent",
+              "value": "delinquent"
+            },
+            {
+              "name": "Paid",
+              "value": "paid"
+            },
+            {
+              "name": "All",
+              "value": "all"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "panic",
+      "description": "Toggle your panic alert",
+      "category": "Dispatch",
+      "usage": null,
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": []
+    },
+    {
+      "name": "pay-fine",
+      "description": "Pay a pending fine or fee from your balance",
+      "category": "Economy",
+      "usage": null,
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "fine",
+          "description": "The fine to pay",
+          "type": "String",
+          "required": true
+        },
+        {
+          "name": "civilian",
+          "description": "Override your active civilian for this run",
+          "type": "String",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "ping-on-panic",
+      "description": "Get ping on panic status",
+      "category": "Admin",
+      "usage": "",
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "toggle",
+          "description": "Toggle ping on panic setting",
+          "type": "SubCommand",
+          "required": false,
+          "options": [
+            {
+              "name": "toggle",
+              "description": "Toggle ping on panic",
+              "type": "Boolean",
+              "required": true
+            },
+            {
+              "name": "role",
+              "description": "Role to ping on panic",
+              "type": "Role",
+              "required": true
+            }
+          ]
+        },
+        {
+          "name": "view",
+          "description": "View the current setting for ping on panic",
+          "type": "SubCommand",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "roles",
+      "description": "Manage allowed roles",
+      "category": "Admin",
+      "usage": "",
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "view",
+          "description": "View allowed roles",
+          "type": "SubCommand",
+          "required": false
+        },
+        {
+          "name": "set",
+          "description": "Set an allowed role",
+          "type": "SubCommand",
+          "required": false,
+          "options": [
+            {
+              "name": "role",
+              "description": "Role to add to allowed roles",
+              "type": "Role",
+              "required": true
+            }
+          ]
+        },
+        {
+          "name": "remove",
+          "description": "Remove role from allowed roles",
+          "type": "SubCommand",
+          "required": false,
+          "options": [
+            {
+              "name": "role",
+              "description": "Role to remove from allowed roles",
+              "type": "Role",
+              "required": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "search",
+      "description": "Search Names, Plates, and Firearms",
+      "category": "Lookup",
+      "usage": "[opt]",
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "firearm",
+          "description": "Search firearm database",
+          "type": "SubCommand",
+          "required": false,
+          "options": [
+            {
+              "name": "serial_number",
+              "description": "Firearm serial number",
+              "type": "String",
+              "required": true
+            }
+          ]
+        },
+        {
+          "name": "plate",
+          "description": "Search license plate database",
+          "type": "SubCommand",
+          "required": false,
+          "options": [
+            {
+              "name": "plate_number",
+              "description": "Vehicle license plate number",
+              "type": "String",
+              "required": true
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "description": "Search name database",
+          "type": "SubCommand",
+          "required": false,
+          "options": [
+            {
+              "name": "full_name",
+              "description": "Civilian's Full Name",
+              "type": "String",
+              "required": true
+            },
+            {
+              "name": "dob",
+              "description": "Civilian's DOB (dd/mm/yyyy)",
+              "type": "String",
+              "required": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "set-active-civilian",
+      "description": "Pick a default civilian for /wallet, /inbox, /clock-in, /pay-fine, /contest-fine",
+      "category": "Economy",
+      "usage": null,
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "civilian",
+          "description": "Civilian to set as your active one for this community",
+          "type": "String",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "signal-100",
+      "description": "Toggle Signal 100 for your community",
+      "category": "Dispatch",
+      "usage": null,
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": []
+    },
+    {
+      "name": "stats",
+      "description": "Displays current Bot statistics",
+      "category": "Info",
+      "usage": "",
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": []
+    },
+    {
+      "name": "update-license",
+      "description": "Update Drivers License Status",
+      "category": "Lookup",
+      "usage": "[firstName] [lastName] [DOB]",
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "firstname",
+          "description": "Civilian's First Name",
+          "type": "String",
+          "required": true
+        },
+        {
+          "name": "lastname",
+          "description": "Civilian's Last Name",
+          "type": "String",
+          "required": true
+        },
+        {
+          "name": "dob",
+          "description": "Civilian's DOB (yyyy-mm-dd)",
+          "type": "String",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "update-status",
+      "description": "Change User status",
+      "category": "Dispatch",
+      "usage": "[status]",
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "status",
+          "description": "New Status Value",
+          "type": "String",
+          "required": true,
+          "choices": [
+            {
+              "name": "10-8 (In Service)",
+              "value": "10-8"
+            },
+            {
+              "name": "10-7 (Out of Service)",
+              "value": "10-7"
+            },
+            {
+              "name": "10-6 (Busy)",
+              "value": "10-6"
+            },
+            {
+              "name": "10-11 (Traffic Stop)",
+              "value": "10-11"
+            },
+            {
+              "name": "10-23 (Arrive on Scene",
+              "value": "10-23"
+            },
+            {
+              "name": "10-97 (In Route)",
+              "value": "10-97"
+            },
+            {
+              "name": "10-15 (Subject in Custody)",
+              "value": "10-15"
+            },
+            {
+              "name": "10-70 (Foot Pursuit)",
+              "value": "10-70"
+            },
+            {
+              "name": "10-80 (Vehicle Pursuit)",
+              "value": "10-80"
+            },
+            {
+              "name": "10-41 (Log in to CAD)",
+              "value": "10-41"
+            },
+            {
+              "name": "10-42 (Log out of CAD)",
+              "value": "10-42"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wallet",
+      "description": "View your civilian's balance, active shift, and pending fines",
+      "category": "Economy",
+      "usage": null,
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "civilian",
+          "description": "Override your active civilian for this run",
+          "type": "String",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

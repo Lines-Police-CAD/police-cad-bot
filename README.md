@@ -4,20 +4,13 @@
 
 The official Discord bot for [Lines Police CAD](https://linespolice-cad.com). Allows community members to interact with the CAD system directly from Discord using slash commands.
 
-## Commands
+## 📚 Documentation
 
-| Command | Description |
-|---|---|
-| `/panic` | Toggle your panic alert (creates or clears) |
-| `/signal-100` | Toggle Signal 100 for your community (activates or clears) |
-| `/update-status` | Change your dispatch status (10-8, 10-7, 10-6, etc.) |
-| `/check-status` | Check your own or another officer's status |
-| `/search` | Search civilians, vehicles, or firearms |
-| `/account` | View your connected Lines Police CAD account |
-| `/community view` | Check your active community |
-| `/channels` | View and manage which channels the bot can be used in |
-| `/roles` | Manage which roles can use the bot |
-| `/ping-on-panic` | Configure a Discord role to be pinged on panic/signal 100 |
+The full, always-up-to-date command reference, setup guide, and FAQ live on the docs site:
+
+**→ [bot.linespolice-cad.com](https://bot.linespolice-cad.com)**
+
+The site is generated from the bot source — see [`docs/`](./docs/) and [`scripts/build-docs.js`](./scripts/build-docs.js). CI fails any PR that changes a command without regenerating `docs/commands.json`.
 
 ## Requirements
 

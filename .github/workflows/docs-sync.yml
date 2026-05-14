@@ -1,0 +1,33 @@
+name: docs-sync
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    name: commands.json is up-to-date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Regenerate docs/commands.json
+        run: node scripts/build-docs.js
+
+      - name: Fail if docs/commands.json is stale
+        run: |
+          if ! git diff --exit-code docs/commands.json; then
+            echo ""
+            echo "::error file=docs/commands.json::commands.json is stale. Run \`node scripts/build-docs.js\` locally and commit the result."
+            exit 1
+          fi

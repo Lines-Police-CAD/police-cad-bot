@@ -125,7 +125,11 @@ module.exports = {
           .findOne({ _id: ObjectId(communityID) }, { projection: { "community.name": 1 } });
         communityName = (community && community.community && community.community.name) || '';
       } catch (_) {}
-      const authorName = communityName ? `${communityName} Court Cases` : 'Court Cases';
+      // Discord embed author name max is 256 chars; cap the community portion so the suffix always fits.
+      const SUFFIX = ' Court Cases';
+      const MAX_NAME = 60;
+      const trimmed = communityName.length > MAX_NAME ? `${communityName.slice(0, MAX_NAME - 1).trimEnd()}…` : communityName;
+      const authorName = trimmed ? `${trimmed}${SUFFIX}` : 'Court Cases';
 
       const d = courtCase.courtCase || {};
       const status = STATUS_LABEL[d.status] || d.status || 'Unknown';

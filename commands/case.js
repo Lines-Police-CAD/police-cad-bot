@@ -1,6 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 const ObjectId = require("mongodb").ObjectId;
+const { getFocusedOption } = require('../util/economy');
 
 const STATUS_LABEL = {
   submitted: 'Submitted',
@@ -9,6 +10,11 @@ const STATUS_LABEL = {
   in_progress: 'In Progress',
   completed: 'Completed',
 };
+
+function truncateChoiceName(s) {
+  s = String(s || '');
+  return s.length > 100 ? `${s.slice(0, 97)}...` : s;
+}
 
 module.exports = {
   name: "case",
@@ -25,8 +31,56 @@ module.exports = {
       value: "case_number",
       type: CommandOptions.String,
       required: true,
+      autocomplete: true,
     },
   ],
+  Autocomplete: {
+    run: async (client, interaction) => {
+      try {
+        const user = await client.dbo
+          .collection("users")
+          .findOne({ "user.discord.id": interaction.member.user.id });
+        if (!user || !user.user.lastAccessedCommunity || !user.user.lastAccessedCommunity.communityID) {
+          return interaction.respond([]);
+        }
+
+        const communityID = user.user.lastAccessedCommunity.communityID;
+        const focused = getFocusedOption(interaction.data.options);
+        const input = ((focused && focused.value) || "").trim();
+
+        const query = { "courtCase.communityID": communityID };
+        if (input) {
+          const escaped = input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          query["courtCase.caseNumber"] = { $regex: escaped, $options: "i" };
+        }
+
+        const cases = await client.dbo
+          .collection("courtcases")
+          .find(query, { projection: { "courtCase.caseNumber": 1, "courtCase.status": 1, "courtCase.civilianName": 1, "courtCase.createdAt": 1 } })
+          .sort({ "courtCase.createdAt": -1 })
+          .limit(25)
+          .toArray();
+
+        const choices = cases
+          .map((c) => {
+            const d = c.courtCase || {};
+            if (!d.caseNumber) return null;
+            const status = STATUS_LABEL[d.status] || d.status || 'Unknown';
+            const civilian = d.civilianName || 'Unknown';
+            return {
+              name: truncateChoiceName(`${d.caseNumber} · ${status} · ${civilian}`),
+              value: String(d.caseNumber),
+            };
+          })
+          .filter(Boolean);
+
+        return interaction.respond(choices);
+      } catch (err) {
+        client.error(`/case autocomplete: ${err && err.message ? err.message : err}`);
+        return interaction.respond([]);
+      }
+    },
+  },
   SlashCommand: {
     /**
      * @param {require("../structures/LinesPoliceCadBot")} client

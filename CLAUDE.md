@@ -3,7 +3,7 @@
 ## Documentation Wiki — keep it in sync
 
 The bot has a docs site served from `/docs` via GitHub Pages on `main`:
-**https://lines-police-cad.github.io/police-cad-bot/**
+**https://bot.linespolice-cad.com**
 
 The site renders command metadata from [`docs/commands.json`](./docs/commands.json), which is **generated** by [`scripts/build-docs.js`](./scripts/build-docs.js) from `commands/*.js`.
 

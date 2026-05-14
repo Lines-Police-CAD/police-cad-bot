@@ -8,7 +8,7 @@ The official Discord bot for [Lines Police CAD](https://linespolice-cad.com). Al
 
 The full, always-up-to-date command reference, setup guide, and FAQ live on the docs site:
 
-**→ [lines-police-cad.github.io/police-cad-bot](https://lines-police-cad.github.io/police-cad-bot/)**
+**→ [bot.linespolice-cad.com](https://bot.linespolice-cad.com)**
 
 The site is generated from the bot source — see [`docs/`](./docs/) and [`scripts/build-docs.js`](./scripts/build-docs.js). CI fails any PR that changes a command without regenerating `docs/commands.json`.
 

@@ -66,30 +66,81 @@ async function getLpcUser(client, discordUserId) {
     .findOne({ "user.discord.id": discordUserId });
 }
 
-const ACTIVE_CIV_COLLECTION = 'bot_active_civilians';
+// Legacy bot-only collection. We still read from it as a fallback during
+// the transition window so users who picked an active civilian on the bot
+// before this rollout keep that pick — but every new write goes to the
+// shared API instead. Once the read fallback has been live for a release
+// or two we can backfill any remaining rows into the shared collection
+// and drop this constant. Tracked in tasks/lessons.md.
+const LEGACY_ACTIVE_CIV_COLLECTION = 'bot_active_civilians';
+
+const { apiRequest } = require('./api');
 
 /**
  * Read the persisted "active civilian" the user picked via /set-active-civilian
  * for the given community. Returns null when not set.
+ *
+ * Reads from the shared /api/v2/user/active-civilian endpoint so the
+ * Discord bot and the web wallet honor the same pick. Falls back to the
+ * legacy bot_active_civilians collection when the API returns null/errors
+ * so historical picks aren't lost.
  */
 async function getActiveCivilianId(client, userId, communityId) {
-  const doc = await client.dbo
-    .collection(ACTIVE_CIV_COLLECTION)
-    .findOne({ userId, communityId });
-  return doc && doc.civilianId ? doc.civilianId : null;
+  if (!userId || !communityId) return null;
+  try {
+    const path = `/api/v2/user/active-civilian?userId=${encodeURIComponent(userId)}&communityId=${encodeURIComponent(communityId)}`;
+    const doc = await apiRequest(client, 'GET', path);
+    if (doc && doc.civilianId) return doc.civilianId;
+  } catch (err) {
+    if (client.error) client.error(`getActiveCivilianId API call failed: ${err.message}`);
+  }
+  // Legacy fallback. Anything found here will be migrated up to the
+  // shared endpoint on the next setActiveCivilianId call for this user.
+  try {
+    const legacy = await client.dbo
+      .collection(LEGACY_ACTIVE_CIV_COLLECTION)
+      .findOne({ userId, communityId });
+    return legacy && legacy.civilianId ? legacy.civilianId : null;
+  } catch (_) {
+    return null;
+  }
 }
 
 /**
  * Persist the user's active civilian for a community. Upsert on (userId, communityId).
+ *
+ * Writes to the shared /api/v2/user/active-civilian endpoint so the web
+ * wallet sees the pick. Also writes to the legacy bot_active_civilians
+ * collection during the transition window so an API outage doesn't
+ * silently drop the user's choice — both reads merge anyway.
  */
 async function setActiveCivilianId(client, userId, communityId, civilianId) {
-  return client.dbo.collection(ACTIVE_CIV_COLLECTION).updateOne(
-    { userId, communityId },
-    {
-      $set: { userId, communityId, civilianId, updatedAt: new Date() },
-    },
-    { upsert: true },
-  );
+  if (!userId || !communityId || !civilianId) return null;
+  let apiOk = false;
+  try {
+    await apiRequest(client, 'PUT', '/api/v2/user/active-civilian', {
+      userId,
+      communityId,
+      civilianId,
+    });
+    apiOk = true;
+  } catch (err) {
+    if (client.error) client.error(`setActiveCivilianId API call failed, falling back to legacy collection: ${err.message}`);
+  }
+  // Legacy write covers two cases: (a) API outage, (b) transitional
+  // reads that haven't migrated yet. Safe to remove once the API has
+  // been the source of truth for a release.
+  try {
+    await client.dbo.collection(LEGACY_ACTIVE_CIV_COLLECTION).updateOne(
+      { userId, communityId },
+      { $set: { userId, communityId, civilianId, updatedAt: new Date() } },
+      { upsert: true },
+    );
+  } catch (err) {
+    if (!apiOk) throw err;
+    if (client.error) client.error(`setActiveCivilianId legacy write failed (API succeeded): ${err.message}`);
+  }
+  return { userId, communityId, civilianId };
 }
 
 /**

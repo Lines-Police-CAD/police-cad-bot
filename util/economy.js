@@ -166,6 +166,31 @@ async function lookupCivilianName(client, civilianId) {
 }
 
 /**
+ * List the communities a user has been approved into. Returns an array of
+ * `{ _id, name, imageLink, ... }` objects from the v2 API.
+ */
+async function listApprovedCommunities(client, userId) {
+  if (!userId) return [];
+  const path = `/api/v2/user/${encodeURIComponent(userId)}/communities?filter=status:approved&limit=50&page=1`;
+  const res = await apiRequest(client, 'GET', path);
+  return (res && res.data) || [];
+}
+
+/**
+ * Set the user's active (last-accessed) community via the shared API so the
+ * web app, mobile app, and bot all agree on which community is "active".
+ */
+async function setActiveCommunityId(client, userId, communityId) {
+  if (!userId || !communityId) return null;
+  await apiRequest(client, 'PUT', '/api/v1/user/last-accessed-community', {
+    userId,
+    communityId,
+    createdAt: new Date().toISOString(),
+  });
+  return { userId, communityId };
+}
+
+/**
  * List a user's civilians in a community via the v2 API.
  */
 async function listUserCivilians(client, userId, communityId) {
@@ -335,6 +360,8 @@ module.exports = {
   civilianName,
   listClockableDepartments,
   listUserCivilians,
+  listApprovedCommunities,
+  setActiveCommunityId,
   civilianAutocomplete,
   getActiveCivilianId,
   setActiveCivilianId,

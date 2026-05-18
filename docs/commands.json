@@ -1,6 +1,6 @@
 {
   "generatedAt": null,
-  "sourceFiles": 23,
+  "sourceFiles": 24,
   "commands": [
     {
       "name": "account",
@@ -579,6 +579,29 @@
         {
           "name": "civilian",
           "description": "Civilian to set as your active one for this community",
+          "type": "String",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "set-active-community",
+      "description": "Switch which community is active for /wallet, /inbox, /clock-in, /community view, etc.",
+      "category": "Community",
+      "usage": null,
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "community",
+          "description": "Community to make active (only approved communities are listed)",
           "type": "String",
           "required": true
         }

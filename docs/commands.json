@@ -1,6 +1,6 @@
 {
   "generatedAt": null,
-  "sourceFiles": 24,
+  "sourceFiles": 25,
   "commands": [
     {
       "name": "account",
@@ -558,6 +558,47 @@
               "required": true
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "send-money",
+      "description": "Send money to another civilian in your community",
+      "category": "Economy",
+      "usage": null,
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "recipient",
+          "description": "The civilian to send money to",
+          "type": "String",
+          "required": true
+        },
+        {
+          "name": "amount",
+          "description": "Amount in dollars (max $10,000)",
+          "type": "Float",
+          "required": true
+        },
+        {
+          "name": "message",
+          "description": "Optional note (max 140 chars)",
+          "type": "String",
+          "required": false
+        },
+        {
+          "name": "from",
+          "description": "Send from a specific civilian (defaults to your active one)",
+          "type": "String",
+          "required": false
         }
       ]
     },

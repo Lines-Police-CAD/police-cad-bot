@@ -216,6 +216,39 @@ async function civilianAutocomplete(client, userId, communityId, query) {
 }
 
 /**
+ * List civilians in a community (community-wide, not just the caller's).
+ * Used to populate the recipient picker for /send-money. Caps at 100 results
+ * — the API enforces the same upper bound.
+ */
+async function listCommunityCivilians(client, communityId) {
+  if (!communityId) return [];
+  const path = `/api/v2/community/${encodeURIComponent(communityId)}/civilians?page=1&limit=100`;
+  const res = await apiRequest(client, 'GET', path);
+  return (res && res.civilians) || [];
+}
+
+/**
+ * Autocomplete choices for picking a peer-transfer recipient. Excludes the
+ * sender's own civilian so the API's self-send guard isn't triggered from
+ * the picker. Falls back gracefully on error.
+ */
+async function communityCivilianAutocomplete(client, communityId, query, excludeCivilianId) {
+  let civs = [];
+  try {
+    civs = await listCommunityCivilians(client, communityId);
+  } catch (err) {
+    if (client.error) client.error(`communityCivilianAutocomplete: ${err.message}`);
+    return [];
+  }
+  const q = (query || '').toLowerCase();
+  return civs
+    .filter((c) => c && c._id && (!excludeCivilianId || c._id.toString() !== excludeCivilianId))
+    .map((c) => ({ name: civilianName(c), value: c._id.toString() }))
+    .filter((c) => !q || c.name.toLowerCase().includes(q))
+    .slice(0, 25);
+}
+
+/**
  * Returns true when community-level economy is enabled. Reads Mongo directly.
  */
 async function isCommunityEconomyEnabled(client, communityId) {
@@ -363,6 +396,8 @@ module.exports = {
   listApprovedCommunities,
   setActiveCommunityId,
   civilianAutocomplete,
+  communityCivilianAutocomplete,
+  listCommunityCivilians,
   getActiveCivilianId,
   setActiveCivilianId,
   resolveCivilianId,

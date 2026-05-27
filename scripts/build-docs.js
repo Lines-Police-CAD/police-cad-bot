@@ -26,6 +26,7 @@ const CATEGORY = {
   inbox: "Economy",
   "pay-fine": "Economy",
   "contest-fine": "Economy",
+  "send-money": "Economy",
   "set-active-civilian": "Economy",
   search: "Lookup",
   case: "Lookup",

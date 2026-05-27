@@ -18,7 +18,11 @@ const MAX_MESSAGE_CHARS = 140;
 
 // Best-effort DM the recipient that money landed. Wrapped in its own try so a
 // closed-DM / unlinked-discord recipient never breaks the transfer itself.
-async function dmRecipient(client, recipientCivilianId, { senderName, amountCents, memo, balanceAfter }) {
+//
+// Includes the *recipient civilian's* name so users with multiple civilians
+// in a community know which wallet got hit — otherwise the DM only names
+// the sender, which is useless when you have 10 alts.
+async function dmRecipient(client, recipientCivilianId, { senderName, recipientName, amountCents, memo, balanceAfter }) {
   try {
     const ObjectId = require('mongodb').ObjectId;
     let oid;
@@ -35,9 +39,10 @@ async function dmRecipient(client, recipientCivilianId, { senderName, amountCent
     if (!discordUser) return;
     const embed = new EmbedBuilder()
       .setColor('#34d399')
-      .setAuthor({ name: 'Money received', iconURL: client.config.IconURL })
+      .setAuthor({ name: `Money received → ${recipientName || 'your civilian'}`, iconURL: client.config.IconURL })
       .setTitle(`+${formatMoney(amountCents)} from ${senderName}`)
       .addFields(
+        { name: '**To**', value: `\`${recipientName || 'Civilian'}\``, inline: true },
         { name: '**New balance**', value: `\`${formatMoney(balanceAfter)}\``, inline: true },
       );
     if (memo) {
@@ -204,6 +209,7 @@ module.exports = {
         // command feel sluggish. The transfer itself already succeeded.
         dmRecipient(client, recipientId, {
           senderName,
+          recipientName,
           amountCents,
           memo: message,
           balanceAfter: res.toBalanceAfter,

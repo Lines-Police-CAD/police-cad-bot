@@ -90,16 +90,20 @@ module.exports = {
      * @param {*} param3
     */
     run: async (client, interaction, args, { GuildDB }) => {
+      // All /search replies are private to the requester — these surface
+      // civilian/plate/firearm PII that shouldn't be posted to the whole channel.
+      await interaction.defer({ flags: (1 << 6) });
+
       if (GuildDB.customChannelStatus==true&&!GuildDB.allowedChannels.includes(interaction.channel_id)) {
-        return interaction.send({ content: `You are not allowed to use the bot in this channel.` });
+        return interaction.editOriginal({ content: `You are not allowed to use the bot in this channel.` });
       }
       
       let useCommand = await client.verifyUseCommand(GuildDB.serverID, interaction.member.roles);
-      if (!useCommand) return interaction.send({ content: "You don't have permission to use this command" });
+      if (!useCommand) return interaction.editOriginal({ content: "You don't have permission to use this command" });
 
       const user = await client.dbo.collection("users").findOne({"user.discord.id":interaction.member.user.id}).then(user => user);
-      if (!user) return interaction.send({ content: `You are not logged in.` });
-      if (!user.user.lastAccessedCommunity || !user.user.lastAccessedCommunity.communityID) return interaction.send({ content: `You are not in an active community.` });
+      if (!user) return interaction.editOriginal({ content: `You are not logged in.` });
+      if (!user.user.lastAccessedCommunity || !user.user.lastAccessedCommunity.communityID) return interaction.editOriginal({ content: `You are not in an active community.` });
 
       if (args[0].name == "firearm") {
         let query = {
@@ -110,7 +114,7 @@ module.exports = {
         client.dbo.collection("firearms").findOne(query).then(async (results) => {
           
           if (!results) {
-            return interaction.send({ content: `No Firearms found <@${interaction.member.user.id}>` });
+            return interaction.editOriginal({ content: `No Firearms found <@${interaction.member.user.id}>` });
           }
 
           let civilian = null;
@@ -133,7 +137,7 @@ module.exports = {
           let isStolen = results.firearm.isStolen;
           if (isStolen=="false"||isStolen==false) firearmResult.addFields({name:`**Stolen**`,value:'\`No\`',inline: true});
           if (isStolen=="true"||isStolen==true) firearmResult.addFields({name:`**Stolen**`,value:'\`Yes\`',inline: true});
-          interaction.send({ embeds: [firearmResult] });
+          interaction.editOriginal({ embeds: [firearmResult] });
         });
 
 
@@ -146,7 +150,7 @@ module.exports = {
         client.dbo.collection("vehicles").findOne(query).then(async (results) => {
           
           if (!results) {
-            return interaction.send({ content: `Plate Number \`${args[0].options[0].value}\` not found.` });
+            return interaction.editOriginal({ content: `Plate Number \`${args[0].options[0].value}\` not found.` });
           }
 
           let civilian = null;
@@ -176,7 +180,7 @@ module.exports = {
           if (stolen=='1') plateResult.addFields({ name: `**Stolen**`, value: `\`No\``, inline: true });
           if (stolen=='2') plateResult.addFields({ name: `**Stolen**`, value: `\`Yes\``, inline: true });
 
-          return interaction.send({ embeds: [plateResult] });
+          return interaction.editOriginal({ embeds: [plateResult] });
         });
 
       } else if (args[0].name == "name") {
@@ -193,7 +197,7 @@ module.exports = {
         }
 
         if (!results) {
-          return interaction.send({ content: `No civilian found for \`${picked}\`. Try selecting a name from the suggestions.` });
+          return interaction.editOriginal({ content: `No civilian found for \`${picked}\`. Try selecting a name from the suggestions.` });
         }
 
         // Driver's and firearm license status. Prefer the licenses collection
@@ -261,7 +265,7 @@ module.exports = {
           { name: '❤️ Organ Donor', value: `\`${results.civilian.organDonor}\``, inline: true },
           { name: '🎖️ Veteran', value: `\`${results.civilian.veteran}\``, inline: true },
         );
-        return interaction.send({ embeds: [nameResult] });
+        return interaction.editOriginal({ embeds: [nameResult] });
       }
     },
   },

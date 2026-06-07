@@ -1,6 +1,6 @@
 {
   "generatedAt": null,
-  "sourceFiles": 25,
+  "sourceFiles": 26,
   "commands": [
     {
       "name": "account",
@@ -118,6 +118,29 @@
           "description": "Discord Username",
           "type": "User",
           "required": false
+        }
+      ]
+    },
+    {
+      "name": "civilian",
+      "description": "Look up a civilian's full record — licenses, citations, arrests, warrants, vehicles & more",
+      "category": "Other",
+      "usage": "[civilian]",
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "civilian",
+          "description": "Start typing a civilian's name, then pick from the list",
+          "type": "String",
+          "required": true
         }
       ]
     },

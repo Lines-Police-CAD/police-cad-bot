@@ -18,13 +18,12 @@ const { getCivilianLicenses } = require('../util/licenses');
 
 const ACCENT = '#38bdf8';
 
-// Per-license actions and the canonical status each one sets (matches the
-// website's status dropdown: Pending / Valid / Approved / Suspended / Revoked).
+// Per-license actions. Suspend and Revoke each invalidate the license (whichever
+// is applied last wins); Reinstate restores it to Valid from any state.
 const LICENSE_ACTIONS = {
-  reinstate: { status: 'Valid', label: 'Reinstate', style: ButtonStyle.Success },
-  approve: { status: 'Approved', label: 'Approve', style: ButtonStyle.Success },
   suspend: { status: 'Suspended', label: 'Suspend', style: ButtonStyle.Secondary },
   revoke: { status: 'Revoked', label: 'Revoke', style: ButtonStyle.Danger },
+  reinstate: { status: 'Valid', label: 'Reinstate', style: ButtonStyle.Success },
 };
 
 const STATUS_EMOJI = {

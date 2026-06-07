@@ -89,15 +89,18 @@ class LinesPoliceCadBot extends Client {
           );
         };
 
-        interaction.defer = async () => {
+        interaction.defer = async (options) => {
           const rest = new REST({ version: "10" }).setToken(
             client.config.Token,
           );
+          // type 5 = DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE.
+          // Flags (e.g. 1 << 6 for an ephemeral reply) must be set here, at
+          // ack time — a later editOriginal cannot change ephemerality.
+          const body = { type: 5 };
+          if (options && options.flags) body.data = { flags: options.flags };
           return await rest.post(
             Routes.interactionCallback(interaction.id, interaction.token),
-            {
-              body: { type: 5 }, // DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
-            },
+            { body },
           );
         };
 

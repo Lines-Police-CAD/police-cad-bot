@@ -553,7 +553,7 @@
             },
             {
               "name": "dob",
-              "description": "Civilian's DOB (dd/mm/yyyy)",
+              "description": "Civilian's DOB (yyyy-mm-dd)",
               "type": "String",
               "required": true
             }

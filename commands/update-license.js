@@ -1,6 +1,8 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const io = require('socket.io-client');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
+const { apiRequest } = require('../util/api');
+const { getDriversLicense, legacyCivilianLicenseLabel } = require('../util/licenses');
 
 module.exports = {
   name: "update-license",
@@ -62,23 +64,46 @@ module.exports = {
         }
       }
       
+      // Acknowledge within Discord's 3s window before the (slow) socket
+      // round-trip, otherwise the user sees "application did not respond".
+      // Ephemeral so the license controls stay private to the requester.
+      await interaction.defer({ flags: (1 << 6) });
+
       const socket = io.connect(client.config.socket);
+
+      // Guard against the socket never replying (server down / no event) so the
+      // deferred reply doesn't hang indefinitely.
+      const searchTimeout = setTimeout(() => {
+        socket.disconnect();
+        interaction.editOriginal({ content: `Search timed out, please try again.` });
+      }, 12000);
+
       socket.emit("bot_name_search", data);
-      socket.on("bot_name_search_results", (results) => {
+      socket.on("bot_name_search_results", async (results) => {
+        clearTimeout(searchTimeout);
+        socket.disconnect();
+
         if (results.user._id==user._id) {
           if (results.civilians.length == 0) {
-            return interaction.send({ content: `Name \`${args[0].value} ${args[1].value}\` not found.` });
+            return interaction.editOriginal({ content: `Name \`${args[0].value} ${args[1].value}\` not found.` });
           }
         }
 
         let nameResult;
         let row;
         for (let i = 0; i < results.civilians.length; i++) {
-          // Get Drivers Licence Status
+          // Driver's license status — prefer the licenses collection (web DMV
+          // panel) via the API, fall back to the legacy civilian field.
           let licenseStatus;
-          if (results.civilians[i].civilian.licenseStatus == 1) licenseStatus = 'Valid';
-          if (results.civilians[i].civilian.licenseStatus == 2) licenseStatus = 'Revoked';
-          if (results.civilians[i].civilian.licenseStatus == 3) licenseStatus = 'None';
+          try {
+            const driversLicense = await getDriversLicense(client, results.civilians[i]._id);
+            licenseStatus = driversLicense
+              ? (driversLicense.license.status || 'None')
+              : legacyCivilianLicenseLabel(results.civilians[i].civilian.licenseStatus);
+          } catch (err) {
+            client.error(`update-license: driver license lookup failed: ${err.message}`);
+            licenseStatus = legacyCivilianLicenseLabel(results.civilians[i].civilian.licenseStatus);
+          }
           nameResult = new EmbedBuilder()
             .setColor('#0099ff')
             .setTitle(`**${results.civilians[i].civilian.firstName} ${results.civilians[i].civilian.lastName} | ${results.civilians[i]._id}**`)
@@ -105,34 +130,53 @@ module.exports = {
             )
         }
 
-        return interaction.send({ embeds: [nameResult], components: [row], flags: (1 << 6) });
+        return interaction.editOriginal({ embeds: [nameResult], components: [row] });
       });
     },
   },
   Interactions: {
     license: {
       run: async (client, ButtonInteraction, { GuildDB }) => {
-        const socket = io.connect(client.config.socket);
+        // customId: license-<revoke|reinstate>-<civilianId>
+        const parts = ButtonInteraction.customId.split('-');
+        const action = parts[1];
+        const civilianId = parts[2];
+        const newStatus = action === 'revoke' ? 'Revoked' : 'Valid';
 
-          let queryString = ButtonInteraction.customId;
-          let query = {
-            _id: "",
-            status: null,
-            bot_request: true
-          };
-          if (queryString.split('-')[1]=='revoke') {
-            query.status = 2;
-            query._id = queryString.split('-')[2];
-          } else if (queryString.split('-')[1]=='reinstate') {
-            query.status = 1;
-            query._id = queryString.split('-')[2];
+        // Ack the component interaction so the 3s window isn't blocked by the
+        // API/socket round-trip below.
+        await ButtonInteraction.deferUpdate();
+
+        // Preferred path: update the license record the website reads/writes,
+        // so the change is reflected everywhere (web + `/search`).
+        try {
+          const driversLicense = await getDriversLicense(client, civilianId);
+          if (driversLicense) {
+            await apiRequest(client, 'PUT', `/api/v1/license/${driversLicense._id}`, { status: newStatus });
+            return ButtonInteraction.editReply({ content: `Successfully updated license to \`${newStatus}\`.`, embeds: [], components: [] });
           }
-          socket.emit("update_drivers_license_status", query);
-          socket.on("bot_updated_drivers_license_status", (res) => {
-            socket.disconnect();
-            if (!res.success) return ButtonInteraction.update({ content: 'Failed to update license.', embeds: [], components: [] });
-          });
-          return ButtonInteraction.update({ content: 'Successfully updated license.', embeds: [], components: [] });
+        } catch (err) {
+          client.error(`update-license: API update failed for civ ${civilianId}: ${err.message}`);
+          return ButtonInteraction.editReply({ content: 'Failed to update license.', embeds: [], components: [] });
+        }
+
+        // Legacy fallback: civilian has no license record in the licenses
+        // collection — update the legacy `civilian.licenseStatus` field via the
+        // existing socket path (status codes: 1 valid, 2 revoked).
+        const socket = io.connect(client.config.socket);
+        const legacyStatus = action === 'revoke' ? 2 : 1;
+        let settled = false;
+        const finish = (content) => {
+          if (settled) return;
+          settled = true;
+          try { socket.disconnect(); } catch (_) {}
+          return ButtonInteraction.editReply({ content, embeds: [], components: [] });
+        };
+        socket.emit("update_drivers_license_status", { _id: civilianId, status: legacyStatus, bot_request: true });
+        socket.on("bot_updated_drivers_license_status", (res) => {
+          finish((res && res.success) ? `Successfully updated license to \`${newStatus}\`.` : 'Failed to update license.');
+        });
+        setTimeout(() => finish('License update timed out, please try again.'), 12000);
       }
     }
   }

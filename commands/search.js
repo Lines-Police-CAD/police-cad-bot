@@ -2,6 +2,14 @@ const { EmbedBuilder } = require('discord.js');
 const io = require('socket.io-client');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 const ObjectId = require("mongodb").ObjectId;
+const {
+  getCivilianLicenses,
+  pickLicense,
+  isDriversLicense,
+  isWeaponLicense,
+  legacyCivilianLicenseLabel,
+  legacyFirearmLicenseLabel,
+} = require('../util/licenses');
 
 module.exports = {
   name: "search",
@@ -52,7 +60,7 @@ module.exports = {
       },
       {
         name: "dob",
-        description: "Civilian's DOB (dd/mm/yyyy)",
+        description: "Civilian's DOB (yyyy-mm-dd)",
         value: "dob",
         type: CommandOptions.String,
         required: true,
@@ -166,23 +174,34 @@ module.exports = {
           "civilian.activeCommunityID": user.user.lastAccessedCommunity.communityID
         };
 
-        client.dbo.collection("civilians").findOne(query).then((results) => {
-          
+        client.dbo.collection("civilians").findOne(query).then(async (results) => {
+
           if (!results) {
             return interaction.send({ content: `Name \`${args[0].options[0].value}\` not found.` });
           }
-          
-          // Get Drivers Licence Status
+
+          // Driver's and firearm license status. Prefer the licenses collection
+          // (what the web DMV/Licensing panel writes, read via the same API the
+          // website uses) so the bot reflects web updates. Fall back to the
+          // legacy civilian.licenseStatus / civilian.firearmLicense fields for
+          // civilians with no record in the licenses collection.
           let licenceStatus;
-          if (results.civilian.licenseStatus == 1) licenceStatus = 'Valid';
-          if (results.civilian.licenceStatus == 2) licenceStatus = 'Revoked';
-          if (results.civilian.licenceStatus == 3) licenceStatus = 'None';
-          if (!results.civilian.licenceStatus) licenceStatus = "None";
-          // Get Firearm Licence Status
-          let firearmLicence = results.civilian.firearmLicense;
-          if (!firearmLicence) firearmLicence = 'None';
-          if (firearmLicence == '2') firearmLicence = 'Valid';
-          if (firearmLicence == '3') firearmLicence = 'Revoked';
+          let firearmLicence;
+          try {
+            const licenses = await getCivilianLicenses(client, results._id);
+            const driversLicense = pickLicense(licenses, isDriversLicense);
+            const weaponLicense = pickLicense(licenses, isWeaponLicense);
+            licenceStatus = driversLicense
+              ? (driversLicense.license.status || 'None')
+              : legacyCivilianLicenseLabel(results.civilian.licenseStatus);
+            firearmLicence = weaponLicense
+              ? (weaponLicense.license.status || 'None')
+              : legacyFirearmLicenseLabel(results.civilian.firearmLicense);
+          } catch (err) {
+            client.error(`search: license lookup failed for ${results._id}: ${err.message}`);
+            licenceStatus = legacyCivilianLicenseLabel(results.civilian.licenseStatus);
+            firearmLicence = legacyFirearmLicenseLabel(results.civilian.firearmLicense);
+          }
           let nameResult = new EmbedBuilder()
           .setColor('#0099ff')
           .setTitle(`**${results.civilian.name} | ${results._id}**`)

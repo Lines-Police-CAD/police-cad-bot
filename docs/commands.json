@@ -547,13 +547,7 @@
           "options": [
             {
               "name": "full_name",
-              "description": "Civilian's Full Name",
-              "type": "String",
-              "required": true
-            },
-            {
-              "name": "dob",
-              "description": "Civilian's DOB (yyyy-mm-dd)",
+              "description": "Start typing a civilian's name, then pick from the list",
               "type": "String",
               "required": true
             }

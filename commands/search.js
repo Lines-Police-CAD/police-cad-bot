@@ -2,6 +2,8 @@ const { EmbedBuilder } = require('discord.js');
 const io = require('socket.io-client');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 const ObjectId = require("mongodb").ObjectId;
+const { apiRequest } = require('../util/api');
+const { getLpcUser, getFocusedOption, civilianName } = require('../util/economy');
 const {
   getCivilianLicenses,
   pickLicense,
@@ -10,6 +12,16 @@ const {
   legacyCivilianLicenseLabel,
   legacyFirearmLicenseLabel,
 } = require('../util/licenses');
+
+// Server-side civilian name search, scoped to a community — the same endpoint
+// the website's "type a name" autofill uses (police-cad/public/js/cd-person-search.js).
+// Returns an array of civilian documents ({ _id, civilian: {...} }).
+async function civilianNameSearch(client, communityId, query, limit) {
+  const path = `/api/v1/civilians/search?name=${encodeURIComponent((query || '').trim())}`
+    + `&active_community_id=${encodeURIComponent(communityId)}&limit=${limit}&page=0`;
+  const res = await apiRequest(client, 'GET', path);
+  return Array.isArray(res) ? res : (res && res.data) || [];
+}
 
 module.exports = {
   name: "search",
@@ -53,20 +65,37 @@ module.exports = {
       type: CommandOptions.SubCommand,
       options: [{
         name: "full_name",
-        description: "Civilian's Full Name",
+        description: "Start typing a civilian's name, then pick from the list",
         value: "name",
         type: CommandOptions.String,
         required: true,
-      },
-      {
-        name: "dob",
-        description: "Civilian's DOB (yyyy-mm-dd)",
-        value: "dob",
-        type: CommandOptions.String,
-        required: true,
-      },],
+        autocomplete: true,
+      }],
     }
-  ], 
+  ],
+  Autocomplete: {
+    run: async (client, interaction) => {
+      const focused = getFocusedOption(interaction.data.options);
+      if (!focused || focused.name !== 'full_name') return interaction.respond([]);
+      try {
+        const user = await getLpcUser(client, interaction.member.user.id);
+        const communityId = user && user.user && user.user.lastAccessedCommunity
+          && user.user.lastAccessedCommunity.communityID;
+        if (!communityId) return interaction.respond([]);
+
+        const civs = await civilianNameSearch(client, communityId, focused.value, 25);
+        const choices = civs.slice(0, 25).map((c) => {
+          const dob = (c.civilian && c.civilian.birthday) || '';
+          const label = dob ? `${civilianName(c)} • ${dob}` : civilianName(c);
+          return { name: label.slice(0, 100), value: String(c._id) };
+        });
+        return interaction.respond(choices);
+      } catch (err) {
+        client.error(`/search autocomplete: ${err.message}`);
+        return interaction.respond([]);
+      }
+    },
+  },
   SlashCommand: {
     /**
      *
@@ -104,11 +133,10 @@ module.exports = {
           let owner = civilian ? civilian.civilian.name : "N/A";
 
           let firearmResult = new EmbedBuilder()
-            .setColor('#0099ff')
-            .setTitle(`**${results.firearm.serialNumber} | ${results._id}**`)
-            .setURL('https://discord.gg/jgUW656v2t')
-            .setAuthor({ name: 'LPS Website Support', iconURL: client.config.IconURL, url: 'https://discord.gg/jgUW656v2t' })
-            .setDescription('Firearm Search Results')
+            .setColor('#38bdf8')
+            .setAuthor({ name: 'Firearm Search', iconURL: client.config.IconURL })
+            .setTitle(`${results.firearm.serialNumber}`)
+            .setFooter({ text: `ID: ${results._id}` })
             .addFields(
               { name: `**Serial Number**`, value: `\`${results.firearm.serialNumber}\``, inline: true },
               { name: `**Name**`, value: `\`${results.firearm.name}\``, inline: true },
@@ -141,11 +169,10 @@ module.exports = {
           let owner = civilian ? civilian.civilian.name : "N/A";
 
           let plateResult = new EmbedBuilder()
-          .setColor('#0099ff')
-          .setTitle(`**${results.vehicle.plate} | ${results._id}**`)
-          .setURL('https://discord.gg/jgUW656v2t')
-          .setAuthor({ name: 'LPS Website Support', iconURL: client.config.IconURL, url: 'https://discord.gg/jgUW656v2t' })
-          .setDescription('Plate Search Results')
+          .setColor('#38bdf8')
+          .setAuthor({ name: 'Plate Search', iconURL: client.config.IconURL })
+          .setTitle(`${results.vehicle.plate}`)
+          .setFooter({ text: `ID: ${results._id}` })
           .addFields(
             { name: `**Plate #**`, value: `\`${results.vehicle.plate}\``, inline: true },
             { name: `**Vin #**`, value: `\`${results.vehicle.vin}\``, inline: true },
@@ -168,81 +195,98 @@ module.exports = {
         });
 
       } else if (args[0].name == "name") {
-        let query = {
-          "civilian.name": `${args[0].options[0].value}`,
-          "civilian.birthday": args[0].options[1].value,
-          "civilian.activeCommunityID": user.user.lastAccessedCommunity.communityID
-        };
+        const communityId = user.user.lastAccessedCommunity.communityID;
+        const picked = args[0].options[0].value;
 
-        client.dbo.collection("civilians").findOne(query).then(async (results) => {
-
-          if (!results) {
-            return interaction.send({ content: `Name \`${args[0].options[0].value}\` not found.` });
-          }
-
-          // Driver's and firearm license status. Prefer the licenses collection
-          // (what the web DMV/Licensing panel writes, read via the same API the
-          // website uses) so the bot reflects web updates. Fall back to the
-          // legacy civilian.licenseStatus / civilian.firearmLicense fields for
-          // civilians with no record in the licenses collection.
-          let licenceStatus;
-          let firearmLicence;
+        // The autocomplete picker submits the civilian's _id. A free-typed value
+        // (no suggestion chosen) falls back to the best server-side name match.
+        let results = null;
+        if (/^[a-f0-9]{24}$/i.test(picked)) {
+          results = await client.dbo.collection("civilians").findOne({
+            _id: new ObjectId(picked),
+            "civilian.activeCommunityID": communityId,
+          });
+        } else {
           try {
-            const licenses = await getCivilianLicenses(client, results._id);
-            const driversLicense = pickLicense(licenses, isDriversLicense);
-            const weaponLicense = pickLicense(licenses, isWeaponLicense);
-            licenceStatus = driversLicense
-              ? (driversLicense.license.status || 'None')
-              : legacyCivilianLicenseLabel(results.civilian.licenseStatus);
-            firearmLicence = weaponLicense
-              ? (weaponLicense.license.status || 'None')
-              : legacyFirearmLicenseLabel(results.civilian.firearmLicense);
-          } catch (err) {
-            client.error(`search: license lookup failed for ${results._id}: ${err.message}`);
-            licenceStatus = legacyCivilianLicenseLabel(results.civilian.licenseStatus);
-            firearmLicence = legacyFirearmLicenseLabel(results.civilian.firearmLicense);
-          }
-          let nameResult = new EmbedBuilder()
-          .setColor('#0099ff')
-          .setTitle(`**${results.civilian.name} | ${results._id}**`)
-          .setURL('https://discord.gg/jgUW656v2t')
-          .setAuthor({ name: 'LPS Website Support', iconURL: client.config.IconURL, url: 'https://discord.gg/jgUW656v2t' })
-          .setDescription('Name Search Results')
-          .addFields(
-            { name: `**Name**`, value: `\`${results.civilian.name}\``, inline: true },
-            { name: `**DOB**`, value: `\`${results.civilian.birthday}\``, inline: true },
-            { name: `**Drivers License**`, value: `\`${licenceStatus}\``, inline: true },
-            { name: `**Firearm Licence**`, value: `\`${firearmLicence}\``, inline: true },
-            { name: `**Gender**`, value: `\`${results.civilian.gender}\``, inline: true }
-          )
-          // Check Other details
-          let address = results.civilian.address;
-          let occupation = results.civilian.occupation;
-          let height = results.civilian.height;
-          let weight = results.civilian.weight;
-          let eyeColor = results.civilian.eyeColor;
-          let hairColor = results.civilian.hairColor;
-          if (address != null && address != undefined && address != '') nameResult.addFields({ name: `**Address**`, value: `\`${address}\``, inline: true });
-          if (occupation != null && occupation != undefined && occupation != '') nameResult.addFields({ name: `**Occupation**`, value: `\`${occupation}\``, inline: true });
-          if (height!=null&&height!=undefined&&height!="NaN"&&height!='') {
-            if (results.civilian.heightClassification=='imperial') {
-              let ft = Math.floor(height/12);
-              let inch = height%12;
-              nameResult.addFields({ name: '**Height**', value: `\`${ft}'${inch}"\``, inline: true });
-            } else {
-              nameResult.addFields({ name: '**Height**', value: `\`${height}cm\``, inline: true });
+            const civs = await civilianNameSearch(client, communityId, picked, 1);
+            if (civs.length && civs[0]._id) {
+              results = await client.dbo.collection("civilians").findOne({ _id: new ObjectId(civs[0]._id) });
             }
+          } catch (err) {
+            client.error(`/search name lookup failed: ${err.message}`);
           }
-          if (weight!=null&&weight!=undefined&&weight!='') {
-            let units = results.civilian.weightClassification=='imperial' ? 'lbs.' : 'kgs.';
-            nameResult.addFields({ name: '**Weight**', value: `\`${weight}${units}\``, inline: true });
+        }
+
+        if (!results) {
+          return interaction.send({ content: `No civilian found for \`${picked}\`. Try selecting a name from the suggestions.` });
+        }
+
+        // Driver's and firearm license status. Prefer the licenses collection
+        // (what the web DMV/Licensing panel writes, read via the same API the
+        // website uses) so the bot reflects web updates. Fall back to the legacy
+        // civilian.licenseStatus / civilian.firearmLicense fields for civilians
+        // with no record in the licenses collection.
+        let licenceStatus;
+        let firearmLicence;
+        try {
+          const licenses = await getCivilianLicenses(client, results._id);
+          const driversLicense = pickLicense(licenses, isDriversLicense);
+          const weaponLicense = pickLicense(licenses, isWeaponLicense);
+          licenceStatus = driversLicense
+            ? (driversLicense.license.status || 'None')
+            : legacyCivilianLicenseLabel(results.civilian.licenseStatus);
+          firearmLicence = weaponLicense
+            ? (weaponLicense.license.status || 'None')
+            : legacyFirearmLicenseLabel(results.civilian.firearmLicense);
+        } catch (err) {
+          client.error(`search: license lookup failed for ${results._id}: ${err.message}`);
+          licenceStatus = legacyCivilianLicenseLabel(results.civilian.licenseStatus);
+          firearmLicence = legacyFirearmLicenseLabel(results.civilian.firearmLicense);
+        }
+
+        const displayName = civilianName(results) || results.civilian.name || 'Unknown';
+        let nameResult = new EmbedBuilder()
+          .setColor('#38bdf8')
+          .setAuthor({ name: 'Name Search', iconURL: client.config.IconURL })
+          .setTitle(displayName)
+          .addFields(
+            { name: '🎂 DOB', value: `\`${results.civilian.birthday || 'Unknown'}\``, inline: true },
+            { name: '🧍 Gender', value: `\`${results.civilian.gender || 'Unknown'}\``, inline: true },
+            { name: '🪪 Drivers License', value: `\`${licenceStatus}\``, inline: true },
+            { name: '🔫 Firearm License', value: `\`${firearmLicence}\``, inline: true },
+          )
+          .setFooter({ text: `ID: ${results._id}` });
+        if (results.civilian.image) nameResult.setThumbnail(results.civilian.image);
+
+        // Optional details
+        const address = results.civilian.address;
+        const occupation = results.civilian.occupation;
+        const height = results.civilian.height;
+        const weight = results.civilian.weight;
+        const eyeColor = results.civilian.eyeColor;
+        const hairColor = results.civilian.hairColor;
+        if (address) nameResult.addFields({ name: '🏠 Address', value: `\`${address}\``, inline: true });
+        if (occupation) nameResult.addFields({ name: '💼 Occupation', value: `\`${occupation}\``, inline: true });
+        if (height != null && height != undefined && height != "NaN" && height != '') {
+          if (results.civilian.heightClassification == 'imperial') {
+            const ft = Math.floor(height / 12);
+            const inch = height % 12;
+            nameResult.addFields({ name: '📏 Height', value: `\`${ft}'${inch}"\``, inline: true });
+          } else {
+            nameResult.addFields({ name: '📏 Height', value: `\`${height}cm\``, inline: true });
           }
-          if (eyeColor!=null&&eyeColor!=undefined&&eyeColor!='') nameResult.addFields({name:'**Eye Color**',value:`\`${eyeColor}\``,inline:true});
-          if (hairColor!=null&&hairColor!=undefined&&hairColor!='') nameResult.addFields({name:'**Hair Color**',value:`\`${hairColor}\``,inline:true});
-          nameResult.addFields({name:'**Organ Donor**',value:`\`${results.civilian.organDonor}\``,inline:true});
-          nameResult.addFields({name:'**Veteran**',value:`\`${results.civilian.veteran}\``,inline:true});
-          interaction.send({ embeds: [nameResult] });
-        });
+        }
+        if (weight != null && weight != undefined && weight != '') {
+          const units = results.civilian.weightClassification == 'imperial' ? 'lbs.' : 'kgs.';
+          nameResult.addFields({ name: '⚖️ Weight', value: `\`${weight}${units}\``, inline: true });
+        }
+        if (eyeColor) nameResult.addFields({ name: '👁️ Eye Color', value: `\`${eyeColor}\``, inline: true });
+        if (hairColor) nameResult.addFields({ name: '💇 Hair Color', value: `\`${hairColor}\``, inline: true });
+        nameResult.addFields(
+          { name: '❤️ Organ Donor', value: `\`${results.civilian.organDonor}\``, inline: true },
+          { name: '🎖️ Veteran', value: `\`${results.civilian.veteran}\``, inline: true },
+        );
+        return interaction.send({ embeds: [nameResult] });
       }
     },
   },

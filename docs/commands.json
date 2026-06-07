@@ -676,9 +676,9 @@
     },
     {
       "name": "update-license",
-      "description": "Update Drivers License Status",
+      "description": "Update a civilian's license status (suspend, revoke, reinstate, approve)",
       "category": "Lookup",
-      "usage": "[firstName] [lastName] [DOB]",
+      "usage": "[civilian]",
       "debug": false,
       "permissions": {
         "channel": [
@@ -690,20 +690,8 @@
       },
       "options": [
         {
-          "name": "firstname",
-          "description": "Civilian's First Name",
-          "type": "String",
-          "required": true
-        },
-        {
-          "name": "lastname",
-          "description": "Civilian's Last Name",
-          "type": "String",
-          "required": true
-        },
-        {
-          "name": "dob",
-          "description": "Civilian's DOB (yyyy-mm-dd)",
+          "name": "civilian",
+          "description": "Start typing a civilian's name, then pick from the list",
           "type": "String",
           "required": true
         }

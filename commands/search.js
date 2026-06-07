@@ -2,8 +2,8 @@ const { EmbedBuilder } = require('discord.js');
 const io = require('socket.io-client');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 const ObjectId = require("mongodb").ObjectId;
-const { apiRequest } = require('../util/api');
 const { getLpcUser, getFocusedOption, civilianName } = require('../util/economy');
+const { civilianAutocompleteChoices, resolveCivilian } = require('../util/civilians');
 const {
   getCivilianLicenses,
   pickLicense,
@@ -12,16 +12,6 @@ const {
   legacyCivilianLicenseLabel,
   legacyFirearmLicenseLabel,
 } = require('../util/licenses');
-
-// Server-side civilian name search, scoped to a community — the same endpoint
-// the website's "type a name" autofill uses (police-cad/public/js/cd-person-search.js).
-// Returns an array of civilian documents ({ _id, civilian: {...} }).
-async function civilianNameSearch(client, communityId, query, limit) {
-  const path = `/api/v1/civilians/search?name=${encodeURIComponent((query || '').trim())}`
-    + `&active_community_id=${encodeURIComponent(communityId)}&limit=${limit}&page=0`;
-  const res = await apiRequest(client, 'GET', path);
-  return Array.isArray(res) ? res : (res && res.data) || [];
-}
 
 module.exports = {
   name: "search",
@@ -83,12 +73,7 @@ module.exports = {
           && user.user.lastAccessedCommunity.communityID;
         if (!communityId) return interaction.respond([]);
 
-        const civs = await civilianNameSearch(client, communityId, focused.value, 25);
-        const choices = civs.slice(0, 25).map((c) => {
-          const dob = (c.civilian && c.civilian.birthday) || '';
-          const label = dob ? `${civilianName(c)} • ${dob}` : civilianName(c);
-          return { name: label.slice(0, 100), value: String(c._id) };
-        });
+        const choices = await civilianAutocompleteChoices(client, communityId, focused.value);
         return interaction.respond(choices);
       } catch (err) {
         client.error(`/search autocomplete: ${err.message}`);
@@ -198,23 +183,13 @@ module.exports = {
         const communityId = user.user.lastAccessedCommunity.communityID;
         const picked = args[0].options[0].value;
 
-        // The autocomplete picker submits the civilian's _id. A free-typed value
-        // (no suggestion chosen) falls back to the best server-side name match.
+        // The autocomplete picker submits the civilian's _id; a free-typed value
+        // falls back to the best server-side name match.
         let results = null;
-        if (/^[a-f0-9]{24}$/i.test(picked)) {
-          results = await client.dbo.collection("civilians").findOne({
-            _id: new ObjectId(picked),
-            "civilian.activeCommunityID": communityId,
-          });
-        } else {
-          try {
-            const civs = await civilianNameSearch(client, communityId, picked, 1);
-            if (civs.length && civs[0]._id) {
-              results = await client.dbo.collection("civilians").findOne({ _id: new ObjectId(civs[0]._id) });
-            }
-          } catch (err) {
-            client.error(`/search name lookup failed: ${err.message}`);
-          }
+        try {
+          results = await resolveCivilian(client, communityId, picked);
+        } catch (err) {
+          client.error(`/search name lookup failed: ${err.message}`);
         }
 
         if (!results) {

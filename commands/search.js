@@ -230,7 +230,7 @@ module.exports = {
             { name: '🪪 Drivers License', value: `\`${licenceStatus}\``, inline: true },
             { name: '🔫 Firearm License', value: `\`${firearmLicence}\``, inline: true },
           )
-          .setFooter({ text: `ID: ${results._id}` });
+          .setFooter({ text: `ID: ${results._id} · Tip: /civilian shows the full record` });
         if (results.civilian.image) nameResult.setThumbnail(results.civilian.image);
 
         // Optional details

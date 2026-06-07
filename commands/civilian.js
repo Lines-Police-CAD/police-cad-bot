@@ -111,7 +111,7 @@ function renderWarnings(civ) {
 }
 
 async function renderArrests(client, civilianId) {
-  const res = await apiRequest(client, 'GET', `/api/v1/arrest-report/arrestee/${civilianId}?limit=25&page=1`);
+  const res = await apiRequest(client, 'GET', `/api/v1/arrest-report/arrestee/${civilianId}?limit=25&page=0`);
   const items = listFrom(res, 'data');
   if (!items.length) return '_No arrest reports on file._';
   const rows = items.slice(0, MAX_ROWS).map((a) => {
@@ -138,7 +138,7 @@ async function renderWarrants(client, civilianId) {
 }
 
 async function renderVehicles(client, civilianId) {
-  const res = await apiRequest(client, 'GET', `/api/v1/vehicles/registered-owner/${civilianId}?limit=25&page=1`);
+  const res = await apiRequest(client, 'GET', `/api/v1/vehicles/registered-owner/${civilianId}?limit=25&page=0`);
   const items = listFrom(res, 'vehicles');
   if (!items.length) return '_No vehicles registered._';
   const rows = items.slice(0, MAX_ROWS).map((v) => {
@@ -155,7 +155,7 @@ async function renderVehicles(client, civilianId) {
 }
 
 async function renderFirearms(client, civilianId) {
-  const res = await apiRequest(client, 'GET', `/api/v1/firearms/registered-owner/${civilianId}?limit=25&page=1`);
+  const res = await apiRequest(client, 'GET', `/api/v1/firearms/registered-owner/${civilianId}?limit=25&page=0`);
   const items = listFrom(res, 'firearms');
   if (!items.length) return '_No firearms registered._';
   const rows = items.slice(0, MAX_ROWS).map((f) => {

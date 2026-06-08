@@ -1,6 +1,6 @@
 {
   "generatedAt": null,
-  "sourceFiles": 25,
+  "sourceFiles": 26,
   "commands": [
     {
       "name": "account",
@@ -118,6 +118,29 @@
           "description": "Discord Username",
           "type": "User",
           "required": false
+        }
+      ]
+    },
+    {
+      "name": "civilian",
+      "description": "Look up a civilian's full record — licenses, citations, arrests, warrants, vehicles & more",
+      "category": "Other",
+      "usage": "[civilian]",
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "civilian",
+          "description": "Start typing a civilian's name, then pick from the list",
+          "type": "String",
+          "required": true
         }
       ]
     },
@@ -547,13 +570,7 @@
           "options": [
             {
               "name": "full_name",
-              "description": "Civilian's Full Name",
-              "type": "String",
-              "required": true
-            },
-            {
-              "name": "dob",
-              "description": "Civilian's DOB (dd/mm/yyyy)",
+              "description": "Start typing a civilian's name, then pick from the list",
               "type": "String",
               "required": true
             }
@@ -682,9 +699,9 @@
     },
     {
       "name": "update-license",
-      "description": "Update Drivers License Status",
+      "description": "Update a civilian's license status (suspend, revoke, reinstate, approve)",
       "category": "Lookup",
-      "usage": "[firstName] [lastName] [DOB]",
+      "usage": "[civilian]",
       "debug": false,
       "permissions": {
         "channel": [
@@ -696,20 +713,8 @@
       },
       "options": [
         {
-          "name": "firstname",
-          "description": "Civilian's First Name",
-          "type": "String",
-          "required": true
-        },
-        {
-          "name": "lastname",
-          "description": "Civilian's Last Name",
-          "type": "String",
-          "required": true
-        },
-        {
-          "name": "dob",
-          "description": "Civilian's DOB (yyyy-mm-dd)",
+          "name": "civilian",
+          "description": "Start typing a civilian's name, then pick from the list",
           "type": "String",
           "required": true
         }

@@ -64,18 +64,26 @@ module.exports = {
           return interaction.send({ content: 'There are no roles set for the bot.' });
         }
 
-        let roles = ``;
+        // Resolve role names, skipping any that were deleted from the server.
+        // A deleted role used to crash this command (role.name on undefined),
+        // which left admins unable to even see what was locking the bot.
+        let resolvedNames = [];
         for (let i = 0; i < guild.server.allowedRoles.length; i++) {
-          if (guild.server.allowedRoles[i] == undefined) break;
+          if (guild.server.allowedRoles[i] == undefined) continue;
           let role = interaction.guild.roles.cache.find(r => r.id == guild.server.allowedRoles[i]);
-          if (roles.length==0) roles += `@${role.name}`;
-          else roles += `\n@${role.name}`;
+          if (role) resolvedNames.push(`@${role.name}`);
         }
+
+        if (resolvedNames.length == 0) {
+          return interaction.send({ content: 'The allowed roles for the bot no longer exist (they were deleted). The restriction will clear automatically the next time a command is run, or you can run `/roles remove` to clear it now.' });
+        }
+
+        let roles = resolvedNames.join('\n');
         let rolesEmbed = new EmbedBuilder()
           .setColor('#0099ff')
           .setDescription('|**Allowed Roles to use the Bot**')
           .addFields(
-            { name: `There are currently **${guild.server.allowedRoles.length}** allowed roles.`, value: `\`${roles}\``, inline: true },
+            { name: `There are currently **${resolvedNames.length}** allowed roles.`, value: `\`${roles}\``, inline: true },
           )
           .setFooter({ text: 'LPS Website Support', iconURL: client.config.IconURL, proxyIconURL: 'https://discord.gg/jgUW656v2t' })
         return interaction.send({ embeds: [rolesEmbed] });

@@ -78,7 +78,7 @@ module.exports = {
         return interaction.send({ content: `You are not allowed to use the bot in this channel.`, flags: (1 << 6) });
 
       const useCommand = await client.verifyUseCommand(GuildDB.serverID, interaction.member.roles);
-      if (!useCommand) return interaction.send({ content: "You don't have permission to use this command", flags: (1 << 6) });
+      if (!useCommand) return interaction.send({ content: await client.noPermissionMessage(GuildDB.serverID), flags: (1 << 6) });
 
       const user = await getLpcUser(client, interaction.member.user.id);
       if (!user) return interaction.send({ content: `You are not logged in. Go to https://linespolice-cad.com/ to login, and connect your Discord account.`, flags: (1 << 6) });

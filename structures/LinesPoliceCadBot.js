@@ -373,7 +373,7 @@ class LinesPoliceCadBot extends Client {
 
     // If some roles no longer exists, update
     // or if customRoleStatus is true but no roles exist, update
-    if (update || (filteredRoles.length == 0 && customRoleStatus)) {
+    if (update || (filteredRoles.length == 0 && guildDB.customRoleStatus)) {
       let newHasCustomRoles = filteredRoles.length > 0;
 
       await this.dbo.collection("prefixes").updateOne(
@@ -392,6 +392,44 @@ class LinesPoliceCadBot extends Client {
 
     let hasRole = await this.checkRoleStatus(rolesCache, filteredRoles);
     return hasRole;
+  }
+
+  /*
+   Builds the message shown when a user fails verifyUseCommand.
+   When the server has restricted the bot to specific roles, this names
+   those roles so the user knows exactly what they need, instead of a
+   blank "you don't have permission". Deleted roles are skipped. Falls
+   back to the generic message on any error or when no roles resolve.
+  */
+  async noPermissionMessage(serverID) {
+    const base = "You don't have permission to use this command.";
+    try {
+      const guildDB = await this.GetGuild(serverID);
+      if (
+        !guildDB ||
+        !guildDB.customRoleStatus ||
+        !Array.isArray(guildDB.allowedRoles) ||
+        guildDB.allowedRoles.length === 0
+      ) {
+        return base;
+      }
+
+      const guild = this.guilds.cache.get(serverID);
+      const names = [];
+      for (let i = 0; i < guildDB.allowedRoles.length; i++) {
+        const role = guild && guild.roles.cache.get(guildDB.allowedRoles[i]);
+        if (role) names.push(`@${role.name}`);
+      }
+      if (names.length === 0) return base;
+
+      return (
+        `${base}\n\nThis server limits the bot to members with: **${names.join(", ")}**.\n` +
+        "Ask a server admin to give you one of these roles, or have someone with " +
+        "**Manage Server** adjust it with `/roles`."
+      );
+    } catch (e) {
+      return base;
+    }
   }
 
   log(Text) {

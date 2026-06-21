@@ -99,7 +99,7 @@ module.exports = {
       }
       
       let useCommand = await client.verifyUseCommand(GuildDB.serverID, interaction.member.roles);
-      if (!useCommand) return interaction.editOriginal({ content: "You don't have permission to use this command" });
+      if (!useCommand) return interaction.editOriginal({ content: await client.noPermissionMessage(GuildDB.serverID) });
 
       const user = await client.dbo.collection("users").findOne({"user.discord.id":interaction.member.user.id}).then(user => user);
       if (!user) return interaction.editOriginal({ content: `You are not logged in.` });

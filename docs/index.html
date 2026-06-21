@@ -170,7 +170,8 @@
         <p>Once the bot is running, server admins can lock it down further:</p>
         <ul>
           <li><code class="kbd-inline">/channels set channel:#dispatch</code> — restrict the bot to a specific channel</li>
-          <li><code class="kbd-inline">/roles set role:@Officer</code> — gate commands behind a Discord role</li>
+          <li><code class="kbd-inline">/roles set role:@Officer</code> — gate commands behind a Discord role
+            <em>(this overrides Discord admin/owner status — only people with this role can use the bot, so make sure your staff have it; clear it anytime with <code class="kbd-inline">/roles remove</code>)</em></li>
           <li><code class="kbd-inline">/ping-on-panic toggle toggle:True role:@Dispatchers</code> — ping a role on panic / Signal 100</li>
         </ul>
         <p class="next-steps-foot">Each of these requires <em>Manage Server</em> on Discord.</p>
@@ -237,8 +238,27 @@
         <details>
           <summary>"You don't have permission to use this command."</summary>
           <p>
-            A server admin gated the bot behind specific Discord roles. Run
-            <code class="kbd-inline">/roles view</code> to see which roles are allowed.
+            The bot keeps its <strong>own</strong> allowed-roles list, set with
+            <code class="kbd-inline">/roles</code>. This is <em>separate from Discord's permissions</em> —
+            once any role is added, only members who have one of those roles can run commands.
+            Being a server <strong>admin or owner doesn't bypass it</strong>, and Discord's per-command
+            permission overrides won't change it either. That's usually why "I'm an admin and it still
+            blocks me" happens.
+          </p>
+          <p>
+            The bot now names the required role(s) right in the error. To fix it, anyone with
+            <strong>Manage Server</strong> should:
+          </p>
+          <ol>
+            <li>Run <code class="kbd-inline">/roles view</code> to see which role(s) are required.</li>
+            <li>Run <code class="kbd-inline">/roles remove role:@TheRole</code> for each one — removing the
+              <em>last</em> role turns the restriction off entirely and everyone can use the bot again.</li>
+            <li>Prefer to keep it restricted? Run <code class="kbd-inline">/roles set role:@YourStaffRole</code>
+              with a role your members actually have.</li>
+          </ol>
+          <p>
+            If the gating role was deleted from the server, the restriction clears automatically the next
+            time any command is run.
           </p>
         </details>
         <details>

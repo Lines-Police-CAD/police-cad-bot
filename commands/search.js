@@ -170,15 +170,21 @@ module.exports = {
             { name: `**Owner**`, value: `\`${owner}\``, inline: true },
           )
           // Other details
+          // Two encodings: newer records use "true"/"false", older ones a
+          // 1-based select index whose polarity is per-field ("1" = valid
+          // registration, but "2" = stolen). Only matching the numeric form
+          // dropped these fields entirely for the ~5% on the modern one.
+          // See police-cad/public/js/vehicle-flags.js.
+          const isSet = (v) => v !== undefined && v !== null && v !== '';
+          const yesIsOne = (v) => v === '1' || v === 'true' || v === true;
+          const yesIsTwo = (v) => v === '2' || v === 'true' || v === true;
+
           let validRegistration = results.vehicle.validRegistration;
           let validInsurance = results.vehicle.validInsurance;
           let stolen = results.vehicle.isStolen;
-          if (validRegistration=='1') plateResult.addFields({ name: `**Registration**`, value: `\`Valid\``, inline: true });
-          if (validRegistration=='2') plateResult.addFields({ name: `**Registration**`, value: `\`InValid\``, inline: true });
-          if (validInsurance=='1') plateResult.addFields({ name: `**Insurance**`, value: `\`Valid\``, inline: true });
-          if (validInsurance=='2') plateResult.addFields({ name: `**Insurance**`, value: `\`InValid\``, inline: true });
-          if (stolen=='1') plateResult.addFields({ name: `**Stolen**`, value: `\`No\``, inline: true });
-          if (stolen=='2') plateResult.addFields({ name: `**Stolen**`, value: `\`Yes\``, inline: true });
+          if (isSet(validRegistration)) plateResult.addFields({ name: `**Registration**`, value: `\`${yesIsOne(validRegistration) ? 'Valid' : 'InValid'}\``, inline: true });
+          if (isSet(validInsurance)) plateResult.addFields({ name: `**Insurance**`, value: `\`${yesIsOne(validInsurance) ? 'Valid' : 'InValid'}\``, inline: true });
+          if (isSet(stolen)) plateResult.addFields({ name: `**Stolen**`, value: `\`${yesIsTwo(stolen) ? 'Yes' : 'No'}\``, inline: true });
 
           return interaction.editOriginal({ embeds: [plateResult] });
         });

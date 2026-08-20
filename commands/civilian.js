@@ -49,8 +49,20 @@ function fmtDate(v) {
 }
 
 function yesNo(b) { return b ? 'Yes' : 'No'; }
+
+/*
+ * Vehicle flags come in two encodings. Newer records use "true"/"false"; older
+ * ones use a 1-based select index from the original form, whose polarity is
+ * per-field — "1" = valid registration, but "2" = stolen. Roughly 92% of
+ * vehicles still carry the numeric form, and ~5% the modern one, so both
+ * branches matter. See police-cad/public/js/vehicle-flags.js.
+ */
 function stolenYes(v) { return v === 'true' || v === '2' || v === true; }
-function regLabel(v) { return v === '1' ? 'Valid' : v === '2' ? 'Invalid' : '—'; }
+function regValid(v) { return v === '1' || v === 'true' || v === true; }
+function regLabel(v) {
+  if (v === undefined || v === null || v === '') return '—';
+  return regValid(v) ? 'Valid' : 'Invalid';
+}
 
 function capNote(items, rendered) {
   return items.length > rendered.length

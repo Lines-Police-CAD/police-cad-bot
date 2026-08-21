@@ -4,6 +4,8 @@ const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 const ObjectId = require("mongodb").ObjectId;
 const { getLpcUser, getFocusedOption, civilianName } = require('../util/economy');
 const { civilianAutocompleteChoices, resolveCivilian } = require('../util/civilians');
+const { plateAutocompleteChoices, resolveVehicle, vehicleName } = require('../util/vehicles');
+const { apiRequest } = require('../util/api');
 const {
   getCivilianLicenses,
   pickLicense,
@@ -42,10 +44,11 @@ module.exports = {
       type: CommandOptions.SubCommand,
       options: [{
         name: "plate_number",
-        description: "Vehicle license plate number",
+        description: "Start typing a plate, then pick from the list",
         value: "plate_number",
         type: CommandOptions.String,
         required: true,
+        autocomplete: true,
       }],
     },
     {
@@ -66,14 +69,18 @@ module.exports = {
   Autocomplete: {
     run: async (client, interaction) => {
       const focused = getFocusedOption(interaction.data.options);
-      if (!focused || focused.name !== 'full_name') return interaction.respond([]);
+      if (!focused || (focused.name !== 'full_name' && focused.name !== 'plate_number')) {
+        return interaction.respond([]);
+      }
       try {
         const user = await getLpcUser(client, interaction.member.user.id);
         const communityId = user && user.user && user.user.lastAccessedCommunity
           && user.user.lastAccessedCommunity.communityID;
         if (!communityId) return interaction.respond([]);
 
-        const choices = await civilianAutocompleteChoices(client, communityId, focused.value);
+        const choices = focused.name === 'plate_number'
+          ? await plateAutocompleteChoices(client, communityId, focused.value)
+          : await civilianAutocompleteChoices(client, communityId, focused.value);
         return interaction.respond(choices);
       } catch (err) {
         client.error(`/search autocomplete: ${err.message}`);
@@ -142,60 +149,85 @@ module.exports = {
 
 
       } else if (args[0].name == "plate") {
-        let query = {
-          "vehicle.plate": args[0].options[0].value,
-          "vehicle.activeCommunityID": user.user.lastAccessedCommunity.communityID
-        };
+        const communityId = user.user.lastAccessedCommunity.communityID;
+        const typed = args[0].options[0].value;
 
-        client.dbo.collection("vehicles").findOne(query).then(async (results) => {
-          
-          if (!results) {
-            return interaction.editOriginal({ content: `Plate Number \`${args[0].options[0].value}\` not found.` });
+        // The autocomplete picker submits the vehicle's _id; a free-typed plate
+        // falls back to the best server-side match. Both go through the API
+        // rather than reading Mongo directly.
+        let results = null;
+        try {
+          results = await resolveVehicle(client, communityId, typed);
+        } catch (err) {
+          client.error(`/search plate: ${err.message}`);
+          return interaction.editOriginal({ content: `Something went wrong looking up that plate. Try again in a moment.` });
+        }
+
+        if (!results || !results.vehicle) {
+          return interaction.editOriginal({ content: `Plate Number \`${typed}\` not found.` });
+        }
+
+        const d = results.vehicle;
+
+        let owner = "N/A";
+        if (d.linkedCivilianID) {
+          try {
+            const civ = await apiRequest(client, 'GET', `/api/v1/civilian/${d.linkedCivilianID}`);
+            if (civ && civ.civilian && civ.civilian.name) owner = civ.civilian.name;
+          } catch (err) {
+            // An unreachable owner shouldn't blank the whole lookup.
+            client.error(`/search plate owner ${d.linkedCivilianID}: ${err.message}`);
           }
+        }
 
-          let civilian = null;
-          if (results.vehicle.linkedCivilianID != "") civilian = await client.dbo.collection("civilians").findOne({ _id: new ObjectId(results.vehicle.linkedCivilianID) }).then((civ) => civ);
-          let owner = civilian ? civilian.civilian.name : "N/A";
+        // Vehicle flags come in two encodings. Newer records use "true"/"false",
+        // older ones a 1-based select index whose polarity is per-field ("1" is
+        // a valid registration, but "2" is stolen). The API normalizes these on
+        // read, so this is belt-and-braces for a stale API deploy — it can go
+        // once every record has been backfilled.
+        // See police-cad/public/js/vehicle-flags.js for the full explanation.
+        const yesIsOne = (v) => v === '1' || v === 'true' || v === true;
+        const yesIsTwo = (v) => v === '2' || v === 'true' || v === true;
 
-          let plateResult = new EmbedBuilder()
-          .setColor('#38bdf8')
-          .setAuthor({ name: 'Plate Search', iconURL: client.config.IconURL })
-          .setTitle(`${results.vehicle.plate}`)
-          .setFooter({ text: `ID: ${results._id}` })
-          .addFields(
-            { name: `**Plate #**`, value: `\`${results.vehicle.plate}\``, inline: true },
-            { name: `**Vin #**`, value: `\`${results.vehicle.vin}\``, inline: true },
-            { name: `**Model**`, value: `\`${results.vehicle.model}\``, inline: true },
-            { name: `**Color**`, value: `\`${results.vehicle.color}\``, inline: true },
-            { name: `**Owner**`, value: `\`${owner}\``, inline: true },
-          )
-          // Other details.
-          //
-          // Two encodings: newer records use "true"/"false", older ones a
-          // 1-based select index whose polarity is per-field ("1" = valid
-          // registration, but "2" = stolen). This command reads Mongo directly
-          // rather than through the API, so it sees the raw stored value and
-          // has to resolve both itself.
-          // See police-cad/public/js/vehicle-flags.js for the full explanation.
-          //
-          // These fields render unconditionally. Skipping an absent or empty
-          // value left an officer with no Stolen line at all, which reads as
-          // "unknown" when every other surface would say "No" -- the API
-          // resolves a missing flag to false, so match that.
-          const yesIsOne = (v) => v === '1' || v === 'true' || v === true;
-          const yesIsTwo = (v) => v === '2' || v === 'true' || v === true;
+        const stolen = yesIsTwo(d.isStolen);
+        const exempt = yesIsOne(d.isExempt);
+        const name = vehicleName(results);
+        const dash = (v) => (v === undefined || v === null || v === '' ? '—' : v);
 
-          let validRegistration = results.vehicle.validRegistration;
-          let validInsurance = results.vehicle.validInsurance;
-          let stolen = results.vehicle.isStolen;
-          let exempt = results.vehicle.isExempt;
-          plateResult.addFields({ name: `**Registration**`, value: `\`${yesIsOne(validRegistration) ? 'Valid' : 'InValid'}\``, inline: true });
-          plateResult.addFields({ name: `**Insurance**`, value: `\`${yesIsOne(validInsurance) ? 'Valid' : 'InValid'}\``, inline: true });
-          plateResult.addFields({ name: `**Stolen**`, value: `\`${yesIsTwo(stolen) ? 'Yes' : 'No'}\``, inline: true });
-          if (yesIsOne(exempt)) plateResult.addFields({ name: `**Exempt**`, value: `\`Yes\``, inline: true });
+        // Lead with the flags an officer is actually looking for.
+        const alerts = [];
+        if (stolen) alerts.push('🚨 **STOLEN**');
+        if (!yesIsOne(d.validRegistration)) alerts.push('⚠️ Invalid registration');
+        if (!yesIsOne(d.validInsurance)) alerts.push('⚠️ No insurance');
+        if (exempt) alerts.push('🛡️ Exempt');
 
-          return interaction.editOriginal({ embeds: [plateResult] });
-        });
+        let plateResult = new EmbedBuilder()
+        .setColor(stolen ? '#ef4444' : (alerts.length ? '#f59e0b' : '#38bdf8'))
+        .setAuthor({ name: 'Plate Search', iconURL: client.config.IconURL })
+        .setTitle(`${d.plate || '—'}${name ? ` · ${name}` : ''}`)
+        .setFooter({ text: `ID: ${results._id}` });
+
+        if (alerts.length) plateResult.setDescription(alerts.join('\n'));
+        if (d.image) plateResult.setThumbnail(d.image);
+
+        plateResult.addFields(
+          { name: `**Plate #**`, value: `\`${dash(d.plate)}\``, inline: true },
+          { name: `**Plate State**`, value: `\`${dash(d.licensePlateState)}\``, inline: true },
+          { name: `**Vin #**`, value: `\`${dash(d.vin)}\``, inline: true },
+          { name: `**Make**`, value: `\`${dash(d.make)}\``, inline: true },
+          { name: `**Model**`, value: `\`${dash(d.model)}\``, inline: true },
+          { name: `**Year**`, value: `\`${dash(d.year)}\``, inline: true },
+          { name: `**Type**`, value: `\`${dash(d.type)}\``, inline: true },
+          { name: `**Color**`, value: `\`${dash(d.color)}\``, inline: true },
+          { name: `**Owner**`, value: `\`${owner}\``, inline: true },
+          // Rendered unconditionally: an omitted Stolen line reads as "unknown"
+          // when every other surface would say "No".
+          { name: `**Registration**`, value: `\`${yesIsOne(d.validRegistration) ? 'Valid' : 'Invalid'}\``, inline: true },
+          { name: `**Insurance**`, value: `\`${yesIsOne(d.validInsurance) ? 'Valid' : 'Invalid'}\``, inline: true },
+          { name: `**Stolen**`, value: `\`${stolen ? 'Yes' : 'No'}\``, inline: true },
+        );
+
+        return interaction.editOriginal({ embeds: [plateResult] });
 
       } else if (args[0].name == "name") {
         const communityId = user.user.lastAccessedCommunity.communityID;

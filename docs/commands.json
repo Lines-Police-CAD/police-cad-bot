@@ -556,7 +556,7 @@
           "options": [
             {
               "name": "plate_number",
-              "description": "Vehicle license plate number",
+              "description": "Start typing a plate, then pick from the list",
               "type": "String",
               "required": true
             }

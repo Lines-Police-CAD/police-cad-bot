@@ -71,11 +71,20 @@ async function resolveVehicle(client, communityId, value) {
   const raw = String(value || '').trim();
 
   if (OBJECT_ID.test(raw)) {
+    let veh = null;
     try {
-      return await apiRequest(client, 'GET', `/api/v1/vehicle/${raw}`);
+      veh = await apiRequest(client, 'GET', `/api/v1/vehicle/${raw}`);
     } catch (err) {
       return null;
     }
+    // Scope the id path too. The suggestions are already community-scoped, but
+    // Discord still submits whatever was typed if the user ignores the picker,
+    // so a pasted id from another community must not resolve. The plate path
+    // gets this from active_community_id on the search endpoint; fetching by id
+    // has no such filter, so check it here.
+    if (!veh || !veh.vehicle) return null;
+    if (veh.vehicle.activeCommunityID !== communityId) return null;
+    return veh;
   }
 
   const vehicles = await vehiclePlateSearch(client, communityId, raw, 25);

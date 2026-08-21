@@ -116,7 +116,7 @@ module.exports = {
 
       const user = await client.dbo.collection("users").findOne({"user.discord.id":interaction.member.user.id}).then(user => user);
       if (!user) return interaction.editOriginal({ content: `You are not logged in.` });
-      if (!user.user.lastAccessedCommunity || !user.user.lastAccessedCommunity.communityID) return interaction.editOriginal({ content: `You are not in an active community.` });
+      if (!user.user.lastAccessedCommunity || !user.user.lastAccessedCommunity.communityID) return interaction.editOriginal({ content: `You are not in an active community. Run \`/set-active-community\` to pick one.` });
 
       if (args[0].name == "firearm") {
         let query = {
@@ -183,10 +183,11 @@ module.exports = {
         if (!results || !results.vehicle) {
           const fleet = await communityVehicleCount(client, communityId);
           const where = communityLabel ? 'that community' : 'your active community';
+          // Point at the bot command, not the website — they can switch right here.
+          const elsewhere = ` If it's registered elsewhere, run \`/set-active-community\` to switch._`;
           const searched = fleet === null
-            ? `\n_Searches only cover ${where}. If the vehicle is registered elsewhere, switch communities on the website._`
-            : `\n_Searched all ${fleet.toLocaleString()} ${fleet === 1 ? 'vehicle' : 'vehicles'} in ${where}.`
-              + ` If it's registered elsewhere, switch communities on the website._`;
+            ? `\n_Searches only cover ${where}.${elsewhere}`
+            : `\n_Searched all ${fleet.toLocaleString()} ${fleet === 1 ? 'vehicle' : 'vehicles'} in ${where}.${elsewhere}`;
           return interaction.editOriginal({
             content: `Plate Number \`${typed}\` not found${inCommunity}.${searched}`,
           });

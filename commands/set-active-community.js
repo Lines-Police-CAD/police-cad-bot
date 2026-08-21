@@ -10,7 +10,7 @@ const {
 
 module.exports = {
   name: "set-active-community",
-  description: "Switch which community is active for /wallet, /inbox, /clock-in, /community view, etc.",
+  description: "Switch which community is active for /search, /wallet, /inbox, /clock-in, and more.",
   permissions: {
     channel: ["VIEW_CHANNEL", "SEND_MESSAGES", "EMBED_LINKS"],
     member: [],

@@ -190,8 +190,14 @@ async function buildHubPayload(client, civilianId, activeKey) {
   const embed = new EmbedBuilder()
     .setColor(ACCENT)
     .setAuthor({ name: `${tab.emoji} ${tab.label}`, iconURL: client.config.IconURL })
-    .setTitle(displayName)
-    .setFooter({ text: `ID: ${civilianId}` });
+    .setTitle(displayName);
+
+  // Footer carries the DOB rather than the record id — nobody can act on a raw
+  // ObjectId, whereas DOB is what actually tells two same-named civilians
+  // apart. It matters here specifically because DOB is a field on the overview
+  // tab only; every other tab replaces the fields with a body, so without this
+  // the name is the sole identifier once you switch sections.
+  if (c.birthday) embed.setFooter({ text: `DOB: ${c.birthday}` });
   if (c.image) embed.setThumbnail(c.image);
 
   if (tab.key === 'overview') {
@@ -319,6 +325,11 @@ module.exports = {
       }
     },
   },
+  // Exported so other commands can open this same record view rather than
+  // rendering their own thinner version of it — /search plate's owner button
+  // uses it. Functions are dropped when the command object is serialized for
+  // Discord's registration payload, so this is invisible to the API.
+  buildHubPayload,
   Interactions: {
     // Tab select → render the chosen section.
     civtab: {

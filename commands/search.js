@@ -1,4 +1,9 @@
-const { EmbedBuilder } = require('discord.js');
+const {
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} = require('discord.js');
 const io = require('socket.io-client');
 const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 const ObjectId = require("mongodb").ObjectId;
@@ -12,6 +17,8 @@ const {
 } = require('../util/vehicles');
 const { getCommunityName, communityUrl } = require('../util/communities');
 const { apiRequest } = require('../util/api');
+// Reuse /civilian's record renderer rather than building a thinner copy here.
+const { buildHubPayload: buildCivilianHub } = require('./civilian');
 const {
   getCivilianLicenses,
   pickLicense,
@@ -138,7 +145,6 @@ module.exports = {
             .setColor('#38bdf8')
             .setAuthor({ name: 'Firearm Search', iconURL: client.config.IconURL })
             .setTitle(`${results.firearm.serialNumber}`)
-            .setFooter({ text: `ID: ${results._id}` })
             .addFields(
               { name: `**Serial Number**`, value: `\`${results.firearm.serialNumber}\``, inline: true },
               { name: `**Name**`, value: `\`${results.firearm.name}\``, inline: true },
@@ -196,10 +202,14 @@ module.exports = {
         const d = results.vehicle;
 
         let owner = "N/A";
+        let ownerId = null;
         if (d.linkedCivilianID) {
           try {
             const civ = await apiRequest(client, 'GET', `/api/v1/civilian/${d.linkedCivilianID}`);
-            if (civ && civ.civilian && civ.civilian.name) owner = civ.civilian.name;
+            if (civ && civ.civilian && civ.civilian.name) {
+              owner = civ.civilian.name;
+              ownerId = String(civ._id || d.linkedCivilianID);
+            }
           } catch (err) {
             // An unreachable owner shouldn't blank the whole lookup.
             client.error(`/search plate owner ${d.linkedCivilianID}: ${err.message}`);
@@ -275,7 +285,21 @@ module.exports = {
           });
         }
 
-        return interaction.editOriginal({ embeds: [plateResult] });
+        // Discord can't pre-fill and submit a slash command for someone, but a
+        // button can just do the lookup — one click instead of retyping the
+        // owner's name into /civilian and hoping the autocomplete matches.
+        const rows = [];
+        if (ownerId) {
+          rows.push(new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`plateowner-${ownerId}`)
+              .setLabel(`View owner: ${owner}`.slice(0, 80))
+              .setStyle(ButtonStyle.Primary)
+              .setEmoji('👤')
+          ));
+        }
+
+        return interaction.editOriginal({ embeds: [plateResult], components: rows });
 
       } else if (args[0].name == "name") {
         const communityId = user.user.lastAccessedCommunity.communityID;
@@ -328,7 +352,7 @@ module.exports = {
             { name: '🪪 Drivers License', value: `\`${licenceStatus}\``, inline: true },
             { name: '🔫 Firearm License', value: `\`${firearmLicence}\``, inline: true },
           )
-          .setFooter({ text: `ID: ${results._id} · Tip: /civilian shows the full record` });
+          .setFooter({ text: `Tip: /civilian shows the full record` });
         if (results.civilian.image) nameResult.setThumbnail(results.civilian.image);
 
         // Optional details
@@ -361,6 +385,48 @@ module.exports = {
         );
         return interaction.editOriginal({ embeds: [nameResult] });
       }
+    },
+  },
+  Interactions: {
+    // "View owner" on a plate result. Opens the same record view /civilian
+    // renders, in a new ephemeral message so the plate embed stays put — the
+    // tab select on it works because /civilian registers that handler globally.
+    plateowner: {
+      run: async (client, interaction) => {
+        try {
+          const civilianId = interaction.customId.split('-')[1];
+          if (!civilianId) return;
+
+          // Re-check scope rather than trusting the customId. The button only
+          // ever appears on an ephemeral result the clicker owns, but a
+          // customId is just a string a client can send.
+          const user = await getLpcUser(client, interaction.user.id);
+          const communityId = user && user.user && user.user.lastAccessedCommunity
+            && user.user.lastAccessedCommunity.communityID;
+          if (!communityId) {
+            return interaction.reply({
+              content: 'You are not in an active community. Run `/set-active-community` to pick one.',
+              flags: (1 << 6),
+            });
+          }
+
+          const civ = await resolveCivilian(client, communityId, civilianId);
+          if (!civ) {
+            return interaction.reply({
+              content: 'That civilian is no longer available in your active community.',
+              flags: (1 << 6),
+            });
+          }
+
+          const payload = await buildCivilianHub(client, String(civ._id), 'overview');
+          return interaction.reply({ ...payload, flags: (1 << 6) });
+        } catch (err) {
+          client.error(`plateowner: ${err.message}`);
+          try {
+            return interaction.reply({ content: 'Failed to load that owner.', flags: (1 << 6) });
+          } catch (_) {}
+        }
+      },
     },
   },
 }

@@ -20,11 +20,32 @@ const OBJECT_ID = /^[a-f0-9]{24}$/i;
  * autocomplete. Returns an array of vehicle documents ({ _id, vehicle: {...} }).
  */
 async function vehiclePlateSearch(client, communityId, query, limit) {
-  const path = `/api/v1/vehicles/search?plate=${encodeURIComponent((query || '').trim())}`
-    + `&active_community_id=${encodeURIComponent(communityId)}&limit=${limit}&page=0`;
-  const res = await apiRequest(client, 'GET', path);
+  const res = await plateSearchResponse(client, communityId, query, limit);
   if (Array.isArray(res)) return res;
   return (res && (res.vehicles || res.data)) || [];
+}
+
+/** The raw search response, which also carries `total` for the whole query. */
+async function plateSearchResponse(client, communityId, query, limit) {
+  const path = `/api/v1/vehicles/search?plate=${encodeURIComponent((query || '').trim())}`
+    + `&active_community_id=${encodeURIComponent(communityId)}&limit=${limit}&page=0`;
+  return apiRequest(client, 'GET', path);
+}
+
+/**
+ * How many vehicles the community holds in total. An empty plate matches
+ * everything, so `total` is the community's whole fleet — used to tell someone
+ * whose search found nothing how big the haystack actually was. Returns null if
+ * it can't be determined; this is decoration, not a reason to fail.
+ */
+async function communityVehicleCount(client, communityId) {
+  try {
+    const res = await plateSearchResponse(client, communityId, '', 1);
+    const total = res && res.total;
+    return typeof total === 'number' ? total : null;
+  } catch (err) {
+    return null;
+  }
 }
 
 /** A short "2026 Dinka Chavos V6" style label, or the type, or nothing. */
@@ -99,6 +120,7 @@ async function resolveVehicle(client, communityId, value) {
 
 module.exports = {
   vehiclePlateSearch,
+  communityVehicleCount,
   plateAutocompleteChoices,
   resolveVehicle,
   vehicleName,

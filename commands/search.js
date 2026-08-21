@@ -4,7 +4,13 @@ const CommandOptions = require('../util/CommandOptionTypes').CommandOptionTypes;
 const ObjectId = require("mongodb").ObjectId;
 const { getLpcUser, getFocusedOption, civilianName } = require('../util/economy');
 const { civilianAutocompleteChoices, resolveCivilian } = require('../util/civilians');
-const { plateAutocompleteChoices, resolveVehicle, vehicleName } = require('../util/vehicles');
+const {
+  plateAutocompleteChoices,
+  resolveVehicle,
+  vehicleName,
+  communityVehicleCount,
+} = require('../util/vehicles');
+const { getCommunityName } = require('../util/communities');
 const { apiRequest } = require('../util/api');
 const {
   getCivilianLicenses,
@@ -155,16 +161,35 @@ module.exports = {
         // The autocomplete picker submits the vehicle's _id; a free-typed plate
         // falls back to the best server-side match. Both go through the API
         // rather than reading Mongo directly.
+        //
+        // The community name is fetched alongside so it costs no extra wait.
+        // Every search is scoped to the active community, which is easy to
+        // forget you're in — naming it means a genuine miss doesn't look the
+        // same as searching the wrong community.
         let results = null;
+        let communityLabel = null;
         try {
-          results = await resolveVehicle(client, communityId, typed);
+          [results, communityLabel] = await Promise.all([
+            resolveVehicle(client, communityId, typed),
+            getCommunityName(client, communityId),
+          ]);
         } catch (err) {
           client.error(`/search plate: ${err.message}`);
           return interaction.editOriginal({ content: `Something went wrong looking up that plate. Try again in a moment.` });
         }
 
+        const inCommunity = communityLabel ? ` in **${communityLabel}**` : '';
+
         if (!results || !results.vehicle) {
-          return interaction.editOriginal({ content: `Plate Number \`${typed}\` not found.` });
+          const fleet = await communityVehicleCount(client, communityId);
+          const where = communityLabel ? 'that community' : 'your active community';
+          const searched = fleet === null
+            ? `\n_Searches only cover ${where}. If the vehicle is registered elsewhere, switch communities on the website._`
+            : `\n_Searched all ${fleet.toLocaleString()} ${fleet === 1 ? 'vehicle' : 'vehicles'} in ${where}.`
+              + ` If it's registered elsewhere, switch communities on the website._`;
+          return interaction.editOriginal({
+            content: `Plate Number \`${typed}\` not found${inCommunity}.${searched}`,
+          });
         }
 
         const d = results.vehicle;
@@ -205,7 +230,9 @@ module.exports = {
         .setColor(stolen ? '#ef4444' : (alerts.length ? '#f59e0b' : '#38bdf8'))
         .setAuthor({ name: 'Plate Search', iconURL: client.config.IconURL })
         .setTitle(`${d.plate || '—'}${name ? ` · ${name}` : ''}`)
-        .setFooter({ text: `ID: ${results._id}` });
+        // Name the community here too, so a result from the wrong one is
+        // spottable without having to notice the absence of the right one.
+        .setFooter({ text: communityLabel ? `${communityLabel} · ID: ${results._id}` : `ID: ${results._id}` });
 
         if (alerts.length) plateResult.setDescription(alerts.join('\n'));
         if (d.image) plateResult.setThumbnail(d.image);

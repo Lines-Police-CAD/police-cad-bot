@@ -35,15 +35,27 @@ function vehicleName(v) {
 }
 
 /**
- * Build Discord autocomplete choices (label "PLATE • 2026 Dinka Chavos V6",
- * value = vehicle _id).
+ * Build Discord autocomplete choices, e.g.
+ * "TREEGHJ9 • 2013 Vroom9 Bomber · Green9".
+ *
+ * The label is what the user sees and picks; the value is submitted invisibly
+ * on their behalf. That value is the vehicle's _id rather than the plate
+ * because plates are NOT unique — 167k plate/community pairs have duplicates,
+ * and "NONE" alone appears 1,543 times in a single community. Resolving by
+ * plate would hand back whichever record matched first, which may not be the
+ * one they picked out of the list.
+ *
+ * Colour is included for the same reason: with duplicate plates common, two
+ * rows can otherwise render identically and there is no way to tell them apart.
  */
 async function plateAutocompleteChoices(client, communityId, query) {
   const vehicles = await vehiclePlateSearch(client, communityId, query, 25);
   return vehicles.slice(0, 25).map((v) => {
     const d = v.vehicle || {};
     const name = vehicleName(v);
-    const label = name ? `${d.plate || '—'} • ${name}` : (d.plate || '—');
+    let label = d.plate || '—';
+    if (name) label += ` • ${name}`;
+    if (d.color) label += ` · ${d.color}`;
     return { name: label.slice(0, 100), value: String(v._id) };
   });
 }

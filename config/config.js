@@ -12,7 +12,10 @@ module.exports = {
   IconURL: "https://raw.githubusercontent.com/Linesmerrill/police-cad/master/lines-police-cad.png",
   EmbedColor: "#0099ff",
   Permissions: 2205281600,
-  Website: "https://linespolice-cad.com",
+  // www, not the apex: the apex redirects to https://www.linespolice-cad.com
+  // WITHOUT the path, so anything built on top of this that isn't the bare
+  // homepage would land the user on the homepage instead.
+  Website: "https://www.linespolice-cad.com",
   api_url: process.env.API_URL || "",
   api_token: process.env.API_TOKEN || "",
   mongoURI: process.env.mongoURI || "mongodb://localhost:27017",

@@ -10,7 +10,7 @@ const {
   vehicleName,
   communityVehicleCount,
 } = require('../util/vehicles');
-const { getCommunityName } = require('../util/communities');
+const { getCommunityName, communityUrl } = require('../util/communities');
 const { apiRequest } = require('../util/api');
 const {
   getCivilianLicenses,
@@ -220,20 +220,22 @@ module.exports = {
         const name = vehicleName(results);
         const dash = (v) => (v === undefined || v === null || v === '' ? '—' : v);
 
-        // Lead with the flags an officer is actually looking for.
+        const regOk = yesIsOne(d.validRegistration);
+        const insOk = yesIsOne(d.validInsurance);
+
+        // Lead with the flags an officer is actually looking for. Same icons as
+        // the status fields below, so the summary and the detail agree at a
+        // glance rather than using two vocabularies for one fact.
         const alerts = [];
         if (stolen) alerts.push('🚨 **STOLEN**');
-        if (!yesIsOne(d.validRegistration)) alerts.push('⚠️ Invalid registration');
-        if (!yesIsOne(d.validInsurance)) alerts.push('⚠️ No insurance');
+        if (!regOk) alerts.push('❌ Invalid registration');
+        if (!insOk) alerts.push('❌ No insurance');
         if (exempt) alerts.push('🛡️ Exempt');
 
         let plateResult = new EmbedBuilder()
         .setColor(stolen ? '#ef4444' : (alerts.length ? '#f59e0b' : '#38bdf8'))
         .setAuthor({ name: 'Plate Search', iconURL: client.config.IconURL })
-        .setTitle(`${d.plate || '—'}${name ? ` · ${name}` : ''}`)
-        // Name the community here too, so a result from the wrong one is
-        // spottable without having to notice the absence of the right one.
-        .setFooter({ text: communityLabel ? `${communityLabel} · ID: ${results._id}` : `ID: ${results._id}` });
+        .setTitle(`${d.plate || '—'}${name ? ` · ${name}` : ''}`);
 
         if (alerts.length) plateResult.setDescription(alerts.join('\n'));
         if (d.image) plateResult.setThumbnail(d.image);
@@ -248,12 +250,30 @@ module.exports = {
           { name: `**Type**`, value: `\`${dash(d.type)}\``, inline: true },
           { name: `**Color**`, value: `\`${dash(d.color)}\``, inline: true },
           { name: `**Owner**`, value: `\`${owner}\``, inline: true },
-          // Rendered unconditionally: an omitted Stolen line reads as "unknown"
-          // when every other surface would say "No".
-          { name: `**Registration**`, value: `\`${yesIsOne(d.validRegistration) ? 'Valid' : 'Invalid'}\``, inline: true },
-          { name: `**Insurance**`, value: `\`${yesIsOne(d.validInsurance) ? 'Valid' : 'Invalid'}\``, inline: true },
-          { name: `**Stolen**`, value: `\`${stolen ? 'Yes' : 'No'}\``, inline: true },
+          // Status fields drop the code formatting the factual fields use, and
+          // carry an icon instead — these are the three an officer scans for,
+          // and monospace made them read like just more data. Note the icon
+          // tracks *good vs bad*, not the literal value: a stolen "Yes" is the
+          // alarming one, where an invalid registration is the "Invalid".
+          // Rendered unconditionally — an omitted Stolen line reads as
+          // "unknown" when every other surface would say "No".
+          { name: `**Registration**`, value: regOk ? '✅ Valid' : '❌ Invalid', inline: true },
+          { name: `**Insurance**`, value: insOk ? '✅ Valid' : '❌ Invalid', inline: true },
+          { name: `**Stolen**`, value: stolen ? '🚨 Yes' : '✅ No', inline: true },
         );
+
+        // Which community this came from, as a link straight to it. This lives
+        // in a full-width field rather than the footer because Discord renders
+        // footers as plain text — a markdown link there would show as literal
+        // brackets. Dropping the record id: nobody can do anything with it.
+        if (communityLabel) {
+          const url = communityUrl(communityId);
+          plateResult.addFields({
+            name: `**Community**`,
+            value: url ? `[${communityLabel}](${url})` : communityLabel,
+            inline: false,
+          });
+        }
 
         return interaction.editOriginal({ embeds: [plateResult] });
 

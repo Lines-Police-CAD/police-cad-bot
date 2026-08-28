@@ -4,9 +4,6 @@ const { apiRequest } = require('../util/api');
 // Launch countdown, shared with the website and the mobile app. The date comes
 // from the API rather than a constant here so a slipped launch is corrected in
 // one place for every surface.
-//
-// Discord renders <t:UNIX:R> and <t:UNIX:F> in each viewer's own timezone, so
-// the localization the other surfaces have to compute is free here.
 
 // Matches the fallbacks in police-cad/lib/countdown.ts and
 // police-cad-app/utils/countdown.js. Used only if the API is unreachable.
@@ -20,23 +17,35 @@ const FALLBACK = {
 };
 
 const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
 
-// The bot runs on a server, so it cannot know a viewer's timezone. In
-// localMidnight mode it anchors the relative timestamp to the storefront
-// instant and says plainly that the real unlock is local midnight, rather than
-// implying one synchronized worldwide moment.
-function anchorInstant(c) {
+// The website and the app both read the device clock, so they can resolve
+// "midnight local time" exactly. The bot runs on a server and cannot, so it
+// deliberately works at day precision instead of rendering an absolute
+// timestamp that would be wrong for nearly everyone.
+//
+// Midnight UTC on the launch date is the reference point: it is within a day
+// of every viewer's own local midnight, which is all the day count needs.
+function referenceInstant(c) {
+  const m = DATE_ONLY.exec(String(c.launchDate || ''));
+  if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 0, 0, 0));
+  // instant mode has no launchDate to work from, and its stored moment is the
+  // real one for everybody.
   if (c.launchesAt) {
     const at = new Date(c.launchesAt);
     if (!isNaN(at.getTime())) return at;
   }
-  const m = DATE_ONLY.exec(String(c.launchDate || ''));
-  if (!m) return null;
-  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 0, 0, 0));
+  return null;
 }
 
-function daysBetween(fromMs, toMs) {
-  return Math.max(0, Math.ceil((toMs - fromMs) / 86400000));
+// "November 19, 2026". Date-only, so it reads the same for every viewer.
+function prettyDate(launchDate) {
+  const m = DATE_ONLY.exec(String(launchDate || ''));
+  if (!m) return null;
+  return `${MONTHS[+m[2] - 1]} ${+m[3]}, ${m[1]}`;
 }
 
 module.exports = {
@@ -74,42 +83,48 @@ module.exports = {
         client.error(`gta6 countdown lookup failed, using fallback: ${err.message}`);
       }
 
-      const anchor = anchorInstant(countdown);
-      if (!anchor) {
+      const reference = referenceInstant(countdown);
+      if (!reference) {
         return interaction.editOriginal({ content: `No launch date is set right now.` });
       }
 
-      const unix = Math.floor(anchor.getTime() / 1000);
       const now = Date.now();
       const postLaunchMs = (countdown.postLaunchHours > 0 ? countdown.postLaunchHours : 72) * 3600000;
-      const launched = now >= anchor.getTime();
 
-      if (launched && now - anchor.getTime() >= postLaunchMs) {
-        return interaction.editOriginal({ content: `${countdown.title} is out. Go play it.` });
+      if (now >= reference.getTime()) {
+        if (now - reference.getTime() >= postLaunchMs) {
+          return interaction.editOriginal({ content: `${countdown.title} is out. Go play it.` });
+        }
+        const out = new EmbedBuilder()
+          .setColor('#ff2d8e')
+          .setAuthor({ name: 'Countdown', iconURL: client.config.IconURL })
+          .setTitle(countdown.title)
+          .setDescription('**Out now.**');
+        return interaction.editOriginal({ embeds: [out] });
       }
+
+      const days = Math.max(0, Math.ceil((reference.getTime() - now) / 86400000));
 
       const embed = new EmbedBuilder()
         .setColor('#ff2d8e')
         .setAuthor({ name: 'Countdown', iconURL: client.config.IconURL })
-        .setTitle(countdown.title);
+        .setTitle(countdown.title)
+        .setDescription(countdown.subtitle || null)
+        .addFields({ name: '**Days to go**', value: `\`${days}\``, inline: true });
 
-      if (launched) {
-        embed.setDescription(`**Out now.** Launched <t:${unix}:R>.`);
+      if (countdown.mode === 'instant') {
+        // A synchronized worldwide unlock does have one true moment, and
+        // Discord renders it in each viewer's own timezone. Only correct here.
+        const unix = Math.floor(reference.getTime() / 1000);
+        embed.addFields({ name: '**Launches**', value: `<t:${unix}:F>`, inline: true });
       } else {
-        const days = daysBetween(now, anchor.getTime());
-        embed
-          .setDescription(countdown.subtitle || null)
-          .addFields(
-            { name: '**Days to go**', value: `\`${days}\``, inline: true },
-            { name: '**Launches**', value: `<t:${unix}:R>`, inline: true },
-            { name: '**Your local time**', value: `<t:${unix}:F>`, inline: false },
-          );
-
-        if (countdown.mode !== 'instant') {
-          embed.setFooter({
-            text: 'Consoles unlock at local midnight, so your exact moment depends on your region.',
-          });
-        }
+        // Staggered regional unlock. Naming the date and saying "midnight your
+        // local time" is exactly as precise as the bot can honestly be.
+        embed.addFields({
+          name: '**Launches**',
+          value: `${prettyDate(countdown.launchDate)} at midnight, your local time`,
+          inline: true,
+        });
       }
 
       return interaction.editOriginal({ embeds: [embed] });

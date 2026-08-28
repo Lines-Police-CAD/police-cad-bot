@@ -1,6 +1,6 @@
 {
   "generatedAt": null,
-  "sourceFiles": 26,
+  "sourceFiles": 27,
   "commands": [
     {
       "name": "account",
@@ -295,6 +295,22 @@
       "description": "Disconnect your Discord account from the Lines Police CAD Database",
       "category": "Account",
       "usage": "",
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": []
+    },
+    {
+      "name": "gta6",
+      "description": "See how long until Grand Theft Auto VI launches",
+      "category": "Other",
+      "usage": null,
       "debug": false,
       "permissions": {
         "channel": [

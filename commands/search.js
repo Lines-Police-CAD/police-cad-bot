@@ -30,7 +30,7 @@ const {
 
 module.exports = {
   name: "search",
-  description: "Search Names, Plates, and Firearms",
+  description: "Look up a person, vehicle or firearm in the CAD",
   usage: "[opt]",
   permissions: {
     channel: ["VIEW_CHANNEL", "SEND_MESSAGES", "EMBED_LINKS"],
@@ -51,8 +51,38 @@ module.exports = {
       }],
     },
     {
+      name: "vehicle",
+      description: "Look up a vehicle by its plate",
+      value: "vehicle",
+      type: CommandOptions.SubCommand,
+      options: [{
+        name: "plate_number",
+        description: "Start typing a plate, then pick from the list",
+        value: "plate_number",
+        type: CommandOptions.String,
+        required: true,
+        autocomplete: true,
+      }],
+    },
+    {
+      name: "person",
+      description: "Look up a civilian by name",
+      value: "person",
+      type: CommandOptions.SubCommand,
+      options: [{
+        name: "full_name",
+        description: "Start typing a civilian's name, then pick from the list",
+        value: "name",
+        type: CommandOptions.String,
+        required: true,
+        autocomplete: true,
+      }],
+    },
+    // Kept for one release so existing muscle memory still works. People went
+    // looking for "vehicle" and "person" and could not find a search at all.
+    {
       name: "plate",
-      description: "Search license plate database",
+      description: "Renamed: use /search vehicle",
       value: "plate",
       type: CommandOptions.SubCommand,
       options: [{
@@ -66,7 +96,7 @@ module.exports = {
     },
     {
       name: "name",
-      description: "Search name database",
+      description: "Renamed: use /search person",
       value: "name",
       type: CommandOptions.SubCommand,
       options: [{
@@ -160,7 +190,7 @@ module.exports = {
         });
 
 
-      } else if (args[0].name == "plate") {
+      } else if (args[0].name == "vehicle" || args[0].name == "plate") {
         const communityId = user.user.lastAccessedCommunity.communityID;
         const typed = args[0].options[0].value;
 
@@ -301,7 +331,7 @@ module.exports = {
 
         return interaction.editOriginal({ embeds: [plateResult], components: rows });
 
-      } else if (args[0].name == "name") {
+      } else if (args[0].name == "person" || args[0].name == "name") {
         const communityId = user.user.lastAccessedCommunity.communityID;
         const picked = args[0].options[0].value;
 

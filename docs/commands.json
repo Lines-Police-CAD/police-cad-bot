@@ -537,7 +537,7 @@
     },
     {
       "name": "search",
-      "description": "Search Names, Plates, and Firearms",
+      "description": "Look up a person, vehicle or firearm in the CAD",
       "category": "Lookup",
       "usage": "[opt]",
       "debug": false,
@@ -565,8 +565,36 @@
           ]
         },
         {
+          "name": "vehicle",
+          "description": "Look up a vehicle by its plate",
+          "type": "SubCommand",
+          "required": false,
+          "options": [
+            {
+              "name": "plate_number",
+              "description": "Start typing a plate, then pick from the list",
+              "type": "String",
+              "required": true
+            }
+          ]
+        },
+        {
+          "name": "person",
+          "description": "Look up a civilian by name",
+          "type": "SubCommand",
+          "required": false,
+          "options": [
+            {
+              "name": "full_name",
+              "description": "Start typing a civilian's name, then pick from the list",
+              "type": "String",
+              "required": true
+            }
+          ]
+        },
+        {
           "name": "plate",
-          "description": "Search license plate database",
+          "description": "Renamed: use /search vehicle",
           "type": "SubCommand",
           "required": false,
           "options": [
@@ -580,7 +608,7 @@
         },
         {
           "name": "name",
-          "description": "Search name database",
+          "description": "Renamed: use /search person",
           "type": "SubCommand",
           "required": false,
           "options": [

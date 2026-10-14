@@ -228,6 +228,21 @@
           </p>
         </details>
         <details>
+          <summary>My community isn't in <code class="kbd-inline">/set-active-community</code></summary>
+          <p>
+            That picker only lists communities you are an <strong>approved</strong> member of, so a
+            community you have applied to but not been let into yet will not appear. Ask one of its
+            admins to approve you, or get an invite code from them and run
+            <code class="kbd-inline">/join &lt;code&gt;</code>, which approves you straight away. Then
+            re-run <code class="kbd-inline">/set-active-community</code> and it will be in the list.
+          </p>
+          <p>
+            Admins: <code class="kbd-inline">/invite create</code> makes a code to hand out, and
+            <code class="kbd-inline">/invite list</code> shows the ones still outstanding. Both need
+            permission to manage members in that community.
+          </p>
+        </details>
+        <details>
           <summary>"You are not allowed to use the bot in this channel."</summary>
           <p>
             A server admin has restricted the bot via <code class="kbd-inline">/channels set</code>. Run

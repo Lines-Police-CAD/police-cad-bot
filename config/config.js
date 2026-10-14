@@ -12,16 +12,26 @@ module.exports = {
   IconURL: "https://raw.githubusercontent.com/Linesmerrill/police-cad/master/lines-police-cad.png",
   EmbedColor: "#0099ff",
   Permissions: 2205281600,
+  
   // www, not the apex: the apex redirects to https://www.linespolice-cad.com
   // WITHOUT the path, so anything built on top of this that isn't the bare
   // homepage would land the user on the homepage instead.
   Website: "https://www.linespolice-cad.com",
   api_url: process.env.API_URL || "",
   api_token: process.env.API_TOKEN || "",
+
+  // Server-to-server secret shared with the API (its API_GATEWAY_KEY).
+  // api_token above is the shared service token, so it does not say which
+  // person is acting. Endpoints that act for a specific LPC user take the user
+  // id in the query string and only trust it when this secret comes with it.
+  // Without it, /invite and /join cannot identify the caller.
+  api_gateway_key: process.env.API_GATEWAY_KEY || "",
+  
   // Dedicated secret for the health heartbeat (util/heartbeat.js). Kept
   // separate from api_token because the API validates this one strictly;
   // when it is unset the heartbeat simply does not run.
   bot_heartbeat_token: process.env.BOT_HEARTBEAT_TOKEN || "",
+
   mongoURI: process.env.mongoURI || "mongodb://localhost:27017",
   dbo: process.env.dbo || "knoldus",
   Colors: {

@@ -42,11 +42,22 @@ The site is generated from the bot source — see [`docs/`](./docs/) and [`scrip
    | `token` | Discord bot token |
    | `API_URL` | Lines Police CAD API base URL |
    | `API_TOKEN` | API authentication token (if required) |
+   | `BOT_HEARTBEAT_TOKEN` | Health heartbeat secret. Must match the same variable on the API. Leave unset to disable heartbeating. |
 
 4. Start the bot:
    ```
    npm start
    ```
+
+## Health monitoring
+
+Once `API_URL` and `BOT_HEARTBEAT_TOKEN` are set, each shard posts a heartbeat to the API every 60 seconds while its gateway connection is live. The API alerts the team if the beats stop, so an outage on the bot host is noticed in minutes instead of waiting on a support ticket.
+
+Notes for whoever runs the bot:
+
+- Heartbeating only begins after the host pulls this change and restarts the bot. An already-running process keeps running the old code and will look offline to the monitor.
+- `BOT_HEARTBEAT_TOKEN` must be set to the same value the API uses. If it is missing the bot logs one line at startup and runs normally, just without heartbeating.
+- Heartbeats are fire and forget. A failed beat never interrupts commands, and repeated failures are logged sparsely rather than once per attempt.
 
 ## Development
 

@@ -18,6 +18,10 @@ module.exports = {
   Website: "https://www.linespolice-cad.com",
   api_url: process.env.API_URL || "",
   api_token: process.env.API_TOKEN || "",
+  // Dedicated secret for the health heartbeat (util/heartbeat.js). Kept
+  // separate from api_token because the API validates this one strictly;
+  // when it is unset the heartbeat simply does not run.
+  bot_heartbeat_token: process.env.BOT_HEARTBEAT_TOKEN || "",
   mongoURI: process.env.mongoURI || "mongodb://localhost:27017",
   dbo: process.env.dbo || "knoldus",
   Colors: {

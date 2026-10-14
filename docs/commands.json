@@ -1,6 +1,6 @@
 {
   "generatedAt": null,
-  "sourceFiles": 27,
+  "sourceFiles": 29,
   "commands": [
     {
       "name": "account",
@@ -393,6 +393,124 @@
               "value": "all"
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "invite",
+      "description": "Create, list and revoke invite codes for your active community",
+      "category": "Community",
+      "usage": "[opt]",
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "create",
+          "description": "Create an invite code for your active community",
+          "type": "SubCommand",
+          "required": false,
+          "options": [
+            {
+              "name": "expires_in",
+              "description": "How long the code stays valid (default 24 hours)",
+              "type": "String",
+              "required": false,
+              "choices": [
+                {
+                  "name": "30 minutes",
+                  "value": "30m"
+                },
+                {
+                  "name": "1 hour",
+                  "value": "1h"
+                },
+                {
+                  "name": "6 hours",
+                  "value": "6h"
+                },
+                {
+                  "name": "12 hours",
+                  "value": "12h"
+                },
+                {
+                  "name": "24 hours",
+                  "value": "1d"
+                },
+                {
+                  "name": "7 days",
+                  "value": "7d"
+                },
+                {
+                  "name": "Never",
+                  "value": "never"
+                }
+              ]
+            },
+            {
+              "name": "max_uses",
+              "description": "How many people can join with it, 1 to 100 (default 5)",
+              "type": "Integer",
+              "required": false
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "description": "Show your active community's invite codes",
+          "type": "SubCommand",
+          "required": false,
+          "options": [
+            {
+              "name": "page",
+              "description": "Which page of codes to show (default 1)",
+              "type": "Integer",
+              "required": false
+            }
+          ]
+        },
+        {
+          "name": "delete",
+          "description": "Revoke an invite code so it can no longer be used",
+          "type": "SubCommand",
+          "required": false,
+          "options": [
+            {
+              "name": "code",
+              "description": "The invite code to revoke",
+              "type": "String",
+              "required": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "join",
+      "description": "Join a community with an invite code",
+      "category": "Community",
+      "usage": "<code>",
+      "debug": false,
+      "permissions": {
+        "channel": [
+          "VIEW_CHANNEL",
+          "SEND_MESSAGES",
+          "EMBED_LINKS"
+        ],
+        "member": []
+      },
+      "options": [
+        {
+          "name": "code",
+          "description": "The invite code you were given",
+          "type": "String",
+          "required": true
         }
       ]
     },

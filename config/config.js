@@ -18,6 +18,12 @@ module.exports = {
   Website: "https://www.linespolice-cad.com",
   api_url: process.env.API_URL || "",
   api_token: process.env.API_TOKEN || "",
+  // Server-to-server secret shared with the API (its API_GATEWAY_KEY).
+  // api_token above is the shared service token, so it does not say which
+  // person is acting. Endpoints that act for a specific LPC user take the user
+  // id in the query string and only trust it when this secret comes with it.
+  // Without it, /invite and /join cannot identify the caller.
+  api_gateway_key: process.env.API_GATEWAY_KEY || "",
   mongoURI: process.env.mongoURI || "mongodb://localhost:27017",
   dbo: process.env.dbo || "knoldus",
   Colors: {

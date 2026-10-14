@@ -16,6 +16,8 @@ const CATEGORY = {
   "disconnect-account": "Account",
   community: "Community",
   "set-active-community": "Community",
+  invite: "Community",
+  join: "Community",
   "check-status": "Dispatch",
   "update-status": "Dispatch",
   panic: "Dispatch",

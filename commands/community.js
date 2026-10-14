@@ -12,20 +12,11 @@ module.exports = {
     member: [],
   },
   options: [
+    // Joining by code lives in /join now. It goes through the API, so the
+    // community's own rules decide the outcome. The commented-out subcommand
+    // and the socket.io handler behind it have been removed rather than left
+    // here to be mistaken for the live path.
     // DEPRECATED
-    // {
-    //   name: "join",
-    //   description: "Join a community",
-    //   value: "join",
-    //   type: CommandOptions.SubCommand,
-    //   options: [{
-    //     name: "code",
-    //     description: "Join community with community code",
-    //     value: "code",
-    //     type: CommandOptions.String,
-    //     required: true,
-    //   }],
-    // },
     // {
     //   name: "leave",
     //   description: "Leave your active community",
@@ -55,22 +46,7 @@ module.exports = {
       if (!user) return interaction.send({ content: `You are not logged in.` });
       let req;
       
-      if (args[0].name == "join") {
-        req = {
-          userID: user._id,
-          communityCode: args[0].options[0].value
-        };
-        const socket = io.connect(client.config.socket);
-        socket.emit('bot_join_community', req);
-        socket.on('bot_joined_community', (data) => {
-          socket.disconnect();
-          if (data.error)
-            return interaction.send({ content: `${data.error}` });
-          
-          return interaction.send({ content: `Successfully joined the community \` ${data.commName} \`` })
-        });
-
-      } else if (args[0].name == "leave") {
+      if (args[0].name == "leave") {
         req = {
           userID: user._id
         };

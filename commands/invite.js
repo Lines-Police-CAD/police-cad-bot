@@ -20,6 +20,7 @@ const {
   remainingUsesLabel,
   expiresAtLabel,
   isInviteCodeUsable,
+  creatorLabel,
 } = require('../util/invites');
 
 const LIST_PAGE_SIZE = 10;
@@ -236,7 +237,7 @@ module.exports = {
           .setTitle(communityLabel || 'Your active community');
 
         for (const inviteCode of inviteCodes) {
-          const createdBy = (inviteCode.createdByUser && inviteCode.createdByUser.username) || 'Unknown';
+          const createdBy = creatorLabel(inviteCode);
           const status = isInviteCodeUsable(inviteCode) ? 'Active' : 'Not usable';
           embed.addFields({
             name: `**${inviteCode.code}**`,

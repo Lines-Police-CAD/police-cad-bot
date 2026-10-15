@@ -154,6 +154,23 @@ function expiresAtLabel(expiresAt) {
   return `<t:${unix}:R>`;
 }
 
+/**
+ * Who made a code, as text.
+ *
+ * The API resolves the creator's account and sends it back as createdByUser.
+ * Two things leave it empty, and they are not the same thing: a code minted
+ * before the API recorded its creator at all (the website's Share flow never
+ * sent one, so everything it made before October 2026 holds no creator), and a
+ * code whose creator has since deleted their account. Saying "Unknown" for both
+ * reads like the bot failed to look.
+ */
+function creatorLabel(inviteCode) {
+  const username = inviteCode && inviteCode.createdByUser && inviteCode.createdByUser.username;
+  if (username) return username;
+  if (inviteCode && String(inviteCode.createdBy || '').trim()) return 'Account no longer exists';
+  return 'Not recorded';
+}
+
 /** Whether a listed code can still be redeemed right now. */
 function isInviteCodeUsable(inviteCode) {
   if (inviteCode.expiresAt && new Date(inviteCode.expiresAt).getTime() <= Date.now()) return false;
@@ -194,4 +211,5 @@ module.exports = {
   remainingUsesLabel,
   expiresAtLabel,
   isInviteCodeUsable,
+  creatorLabel,
 };

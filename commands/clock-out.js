@@ -1,12 +1,14 @@
 const { EmbedBuilder } = require('discord.js');
 const { apiRequest } = require('../util/api');
-const { formatMoney, formatDuration, getLpcUser, lookupCivilianName } = require('../util/economy');
-
-async function findActiveSessionForUser(client, userId) {
-  return client.dbo
-    .collection('clock_sessions')
-    .findOne({ status: 'active', userId });
-}
+const {
+  formatMoney,
+  formatDuration,
+  getLpcUser,
+  lookupCivilianName,
+  getActiveSession,
+  getLastClosedSession,
+  closedShiftMessage,
+} = require('../util/economy');
 
 module.exports = {
   name: "clock-out",
@@ -31,9 +33,12 @@ module.exports = {
       await interaction.defer();
 
       try {
-        const active = await findActiveSessionForUser(client, userId);
+        const active = await getActiveSession(client, userId);
         if (!active) {
-          return interaction.editOriginal({ content: `You don't have an active shift to clock out of.` });
+          // A shift the server already closed (inactivity or max session)
+          // reads as "no shift" otherwise, which looks like lost pay.
+          const explained = closedShiftMessage(await getLastClosedSession(client, userId));
+          return interaction.editOriginal({ content: explained || `You don't have an active shift to clock out of.` });
         }
 
         const result = await apiRequest(
@@ -44,6 +49,10 @@ module.exports = {
         );
 
         const sess = (result && result.session) || result;
+        // The sweep can close the shift between the lookup and this call; the
+        // API then returns the closed session as-is with nothing credited.
+        const closedFirst = closedShiftMessage(sess);
+        if (closedFirst) return interaction.editOriginal({ content: closedFirst });
         const credited = (result && typeof result.creditedAmount === 'number') ? result.creditedAmount : 0;
         const elapsed = sess && sess.startedAt ? Date.now() - new Date(sess.startedAt).getTime() : 0;
         const civName = (await lookupCivilianName(client, sess.civilianId)) || 'User-level shift';

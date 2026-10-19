@@ -382,6 +382,84 @@ function formatInboxItemLabel(item) {
   return label;
 }
 
+/**
+ * Copy for a clock-in the API refused because of the civilian: it no longer
+ * exists (404) or isn't the caller's (403). Returns null for any other error.
+ * A saved pick that has gone stale needs /set-active-civilian, not a retry.
+ */
+function civilianRejectionMessage(err, wasExplicit) {
+  const reason = ((err && err.reason) || '').toLowerCase();
+  if (!reason.includes('civilian')) return null;
+  const fix = wasExplicit
+    ? `Pick a different one with \`civilian:\`.`
+    : `Run \`/set-active-civilian\` to pick another, or pass \`civilian:\` on this command.`;
+  if (err.status === 404) {
+    return wasExplicit
+      ? `That civilian no longer exists. ${fix}`
+      : `Your active civilian no longer exists (it may have been deleted). ${fix}`;
+  }
+  if (err.status === 403) return `That civilian isn't on your account. ${fix}`;
+  if (err.status === 400) return `That civilian couldn't be found. ${fix}`;
+  return null;
+}
+
+/**
+ * The user's active shift, or null. Reads through the API rather than the
+ * clock_sessions collection so the bot sees what every other surface sees.
+ */
+async function getActiveSession(client, userId) {
+  if (!userId) return null;
+  const res = await apiRequest(
+    client,
+    'GET',
+    `/api/v2/economy/session/active?userId=${encodeURIComponent(userId)}`,
+  );
+  return res && res._id ? res : null;
+}
+
+/**
+ * The user's most recently closed shift (ended, expired or abandoned), or
+ * null. Best-effort: it only feeds an explanation, so a failure (including an
+ * API that predates the endpoint) returns null rather than throwing.
+ */
+async function getLastClosedSession(client, userId) {
+  if (!userId) return null;
+  try {
+    const res = await apiRequest(
+      client,
+      'GET',
+      `/api/v2/economy/session/last-closed?userId=${encodeURIComponent(userId)}`,
+    );
+    return res && res._id ? res : null;
+  } catch (err) {
+    if (client.error) client.error(`getLastClosedSession: ${err.message}`);
+    return null;
+  }
+}
+
+// How far back /clock-out looks for a shift the server closed on its own.
+const RECENT_CLOSED_SHIFT_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Explain a shift the server closed without the user clocking out: the AFK
+ * sweep ("abandoned") or the max session ("expired"). Returns null when there
+ * is nothing worth explaining: the user ended it themselves, or it closed
+ * more than a day ago.
+ */
+function closedShiftMessage(sess, now = Date.now()) {
+  if (!sess || (sess.status !== 'abandoned' && sess.status !== 'expired')) return null;
+  const endedMs = new Date(sess.endedAt).getTime();
+  if (!Number.isFinite(endedMs) || now - endedMs > RECENT_CLOSED_SHIFT_MS) return null;
+
+  const dept = sess.departmentName ? `**${sess.departmentName}** shift` : 'shift';
+  const when = `<t:${Math.floor(endedMs / 1000)}:R>`;
+  const why = sess.status === 'expired'
+    ? `when it reached the ${sess.maxSessionMinutes || 120}m max session`
+    : 'for inactivity';
+  const paid = `It paid **${formatMoney(sess.earnings || 0)}** for ${formatDuration((sess.paidSeconds || 0) * 1000)}.`;
+  return `Your ${dept} was already closed ${when} ${why}, so there's nothing to clock out of. ${paid}`;
+}
+
 module.exports = {
   formatMoney,
   formatDuration,
@@ -404,4 +482,8 @@ module.exports = {
   lookupCivilianName,
   isCommunityEconomyEnabled,
   formatInboxItemLabel,
+  civilianRejectionMessage,
+  getActiveSession,
+  getLastClosedSession,
+  closedShiftMessage,
 };

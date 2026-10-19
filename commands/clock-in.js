@@ -11,6 +11,7 @@ const {
   resolveCivilianId,
   lookupCivilianName,
   isCommunityEconomyEnabled,
+  civilianRejectionMessage,
 } = require('../util/economy');
 
 const NO_DEPT_HELP = `You don't have any departments you can clock into. This usually means you aren't an approved member of any economy-enabled department, or your community's economy is turned off. Ask your community admin to confirm your membership and that the department has economy enabled.`;
@@ -115,7 +116,10 @@ module.exports = {
           client,
           'POST',
           `/api/v2/economy/clock-in?userId=${encodeURIComponent(userId)}`,
-          { communityId, departmentId, civilianId },
+          // source "discord" tells the API this shift has no client sending
+          // heartbeats, so it runs to /clock-out or the max session instead of
+          // being swept as AFK a minute in.
+          { communityId, departmentId, civilianId, source: 'discord' },
         );
 
         const rate = session.payRateSnapshot ? `${formatMoney(session.payRateSnapshot)}/hr` : 'unknown';
@@ -135,6 +139,10 @@ module.exports = {
       } catch (err) {
         const msg = err && err.message ? err.message : String(err);
         client.error(`/clock-in error: ${msg}`);
+        // A stale or foreign civilian comes back as 404/403 too; check it
+        // first so it isn't reported as a department problem.
+        const civMsg = civilianRejectionMessage(err, Boolean(explicitId));
+        if (civMsg) return interaction.editOriginal({ content: civMsg });
         // Surface the common "already on duty" 409 case clearly.
         if (msg.includes('(409)'))
           return interaction.editOriginal({ content: `You already have an active shift. Use \`/clock-out\` first.` });

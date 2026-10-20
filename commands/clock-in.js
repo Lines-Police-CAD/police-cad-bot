@@ -8,7 +8,7 @@ const {
   getFocusedOption,
   civilianAutocomplete,
   listClockableDepartments,
-  resolveCivilianId,
+  resolveCivilian,
   lookupCivilianName,
   isCommunityEconomyEnabled,
   civilianRejectionMessage,
@@ -106,9 +106,9 @@ module.exports = {
         return interaction.editOriginal({ content: NO_DEPT_HELP });
       }
 
-      const civilianId = await resolveCivilianId(client, userId, communityId, explicitId);
+      const { civilianId, message } = await resolveCivilian(client, userId, communityId, explicitId);
       if (!civilianId) {
-        return interaction.editOriginal({ content: `No civilian selected. Run \`/set-active-civilian\` or pass \`civilian:\` on this command.` });
+        return interaction.editOriginal({ content: message || `No civilian selected. Run \`/set-active-civilian\` or pass \`civilian:\` on this command.` });
       }
 
       try {

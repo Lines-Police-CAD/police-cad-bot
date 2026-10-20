@@ -66,12 +66,10 @@ async function getLpcUser(client, discordUserId) {
     .findOne({ "user.discord.id": discordUserId });
 }
 
-// Legacy bot-only collection. We still read from it as a fallback during
-// the transition window so users who picked an active civilian on the bot
-// before this rollout keep that pick — but every new write goes to the
-// shared API instead. Once the read fallback has been live for a release
-// or two we can backfill any remaining rows into the shared collection
-// and drop this constant. Tracked in tasks/lessons.md.
+// Legacy bot-only collection. We still read from it as a fallback so users
+// who picked an active civilian on the bot before the shared API existed
+// keep that pick. Nothing writes to it any more, and a pick read from it is
+// ownership-checked like any other (resolveCivilian).
 const LEGACY_ACTIVE_CIV_COLLECTION = 'bot_active_civilians';
 
 const { apiRequest } = require('./api');
@@ -109,60 +107,94 @@ async function getActiveCivilianId(client, userId, communityId) {
 /**
  * Persist the user's active civilian for a community. Upsert on (userId, communityId).
  *
- * Writes to the shared /api/v2/user/active-civilian endpoint so the web
- * wallet sees the pick. Also writes to the legacy bot_active_civilians
- * collection during the transition window so an API outage doesn't
- * silently drop the user's choice — both reads merge anyway.
+ * Writes only to the shared /api/v2/user/active-civilian endpoint, which
+ * checks the civilian is the user's own in that community. Throws when the
+ * API refuses or is unreachable, so the caller can say so.
  */
 async function setActiveCivilianId(client, userId, communityId, civilianId) {
   if (!userId || !communityId || !civilianId) return null;
-  let apiOk = false;
-  try {
-    await apiRequest(client, 'PUT', '/api/v2/user/active-civilian', {
-      userId,
-      communityId,
-      civilianId,
-    });
-    apiOk = true;
-  } catch (err) {
-    if (client.error) client.error(`setActiveCivilianId API call failed, falling back to legacy collection: ${err.message}`);
-  }
-  // Legacy write covers two cases: (a) API outage, (b) transitional
-  // reads that haven't migrated yet. Safe to remove once the API has
-  // been the source of truth for a release.
-  try {
-    await client.dbo.collection(LEGACY_ACTIVE_CIV_COLLECTION).updateOne(
-      { userId, communityId },
-      { $set: { userId, communityId, civilianId, updatedAt: new Date() } },
-      { upsert: true },
-    );
-  } catch (err) {
-    if (!apiOk) throw err;
-    if (client.error) client.error(`setActiveCivilianId legacy write failed (API succeeded): ${err.message}`);
-  }
+  await apiRequest(client, 'PUT', '/api/v2/user/active-civilian', {
+    userId,
+    communityId,
+    civilianId,
+  });
   return { userId, communityId, civilianId };
 }
 
 /**
- * Resolve the civilian to act on. Returns the explicit pick if provided,
- * otherwise the user's saved active civilian for the community, otherwise null.
+ * Load a civilian through the API. Returns null when it does not exist or the
+ * id is malformed; throws on any other failure.
  */
-async function resolveCivilianId(client, userId, communityId, explicitId) {
-  if (explicitId) return explicitId;
-  return getActiveCivilianId(client, userId, communityId);
+async function fetchCivilian(client, civilianId) {
+  if (!civilianId) return null;
+  try {
+    return await apiRequest(client, 'GET', `/api/v1/civilian/${encodeURIComponent(civilianId)}`);
+  } catch (err) {
+    if (err.status === 404 || err.status === 400) return null;
+    throw err;
+  }
 }
 
 /**
- * Look up a civilian's name by id from the civilians collection. Returns null
- * when not found / id is invalid.
+ * True when civ is userId's civilian in communityId.
+ */
+function isOwnCivilianInCommunity(civ, userId, communityId) {
+  const d = (civ && civ.civilian) || {};
+  return !!userId && !!communityId && d.userID === userId && d.activeCommunityID === communityId;
+}
+
+const NOT_YOUR_CIVILIAN_MESSAGE = `That civilian isn't yours in this community. Pick one of your own civilians.`;
+const SAVED_CIVILIAN_GONE_MESSAGE =
+  `Your active civilian no longer exists or isn't in this community. Run \`/set-active-civilian\` to pick another, or pass \`civilian:\` on this command.`;
+const CIVILIAN_CHECK_FAILED_MESSAGE = `Couldn't load that civilian right now. Please try again.`;
+
+/**
+ * Resolve the civilian to act on: the explicit pick if provided, otherwise the
+ * user's saved active civilian for the community. Either way it must be the
+ * user's own civilian in that community.
+ *
+ * Returns `{ civilianId, civilian, message }`. civilianId is null when there is
+ * nothing usable; message then says why, or is null when the user simply has
+ * no pick (callers keep their own "no civilian selected" copy). Never throws.
+ */
+async function resolveCivilian(client, userId, communityId, explicitId) {
+  try {
+    const candidate = explicitId || await getActiveCivilianId(client, userId, communityId);
+    if (!candidate) return { civilianId: null, civilian: null, message: null };
+    const civ = await fetchCivilian(client, candidate);
+    if (isOwnCivilianInCommunity(civ, userId, communityId)) {
+      return { civilianId: candidate, civilian: civ, message: null };
+    }
+    return {
+      civilianId: null,
+      civilian: null,
+      message: explicitId ? NOT_YOUR_CIVILIAN_MESSAGE : SAVED_CIVILIAN_GONE_MESSAGE,
+    };
+  } catch (err) {
+    if (client.error) client.error(`resolveCivilian: ${err.message}`);
+    return { civilianId: null, civilian: null, message: CIVILIAN_CHECK_FAILED_MESSAGE };
+  }
+}
+
+/**
+ * resolveCivilian, for callers that only need the id (autocompletes).
+ */
+async function resolveCivilianId(client, userId, communityId, explicitId) {
+  return (await resolveCivilian(client, userId, communityId, explicitId)).civilianId;
+}
+
+/**
+ * Look up a civilian's name by id through the API. Returns null when not
+ * found / id is invalid / the lookup fails.
  */
 async function lookupCivilianName(client, civilianId) {
-  if (!civilianId) return null;
-  const ObjectId = require('mongodb').ObjectId;
-  let oid;
-  try { oid = new ObjectId(civilianId); } catch (_) { return null; }
-  const doc = await client.dbo.collection('civilians').findOne({ _id: oid });
-  return doc ? civilianName(doc) : null;
+  try {
+    const doc = await fetchCivilian(client, civilianId);
+    return doc ? civilianName(doc) : null;
+  } catch (err) {
+    if (client.error) client.error(`lookupCivilianName: ${err.message}`);
+    return null;
+  }
 }
 
 /**
@@ -303,17 +335,18 @@ function civilianName(civ) {
 /**
  * Build autocomplete choices for an inbox-item picker, scoped to one civilian.
  * @param {object} client Bot client (for apiRequest)
+ * @param {string} userId LPC user making the request
  * @param {string} civilianId Civilian whose inbox to query
  * @param {string} communityId Active community id
  * @param {string} query Currently-typed filter text
  * @param {string[]} statuses Statuses to include (e.g., ['pending','delinquent'])
  */
-async function fetchInboxChoices(client, civilianId, communityId, query, statuses) {
+async function fetchInboxChoices(client, userId, civilianId, communityId, query, statuses) {
   const { apiRequest } = require('./api');
   const q = (query || '').toLowerCase();
   const all = [];
   for (const status of statuses) {
-    const path = `/api/v2/economy/inbox?civilianId=${encodeURIComponent(civilianId)}&communityId=${encodeURIComponent(communityId)}&status=${encodeURIComponent(status)}&limit=25`;
+    const path = `/api/v2/economy/inbox?userId=${encodeURIComponent(userId)}&civilianId=${encodeURIComponent(civilianId)}&communityId=${encodeURIComponent(communityId)}&status=${encodeURIComponent(status)}&limit=25`;
     try {
       const res = await apiRequest(client, 'GET', path);
       const items = (res && res.data) || [];
@@ -478,7 +511,11 @@ module.exports = {
   listCommunityCivilians,
   getActiveCivilianId,
   setActiveCivilianId,
+  resolveCivilian,
   resolveCivilianId,
+  fetchCivilian,
+  isOwnCivilianInCommunity,
+  NOT_YOUR_CIVILIAN_MESSAGE,
   lookupCivilianName,
   isCommunityEconomyEnabled,
   formatInboxItemLabel,

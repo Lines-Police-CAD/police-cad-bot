@@ -9,8 +9,8 @@ const {
   findOption,
   getFocusedOption,
   civilianAutocomplete,
-  resolveCivilianId,
-  lookupCivilianName,
+  resolveCivilian,
+  civilianName,
   isCommunityEconomyEnabled,
   formatInboxItemLabel,
 } = require('../util/economy');
@@ -85,15 +85,15 @@ module.exports = {
           return interaction.editOriginal({ content: `Economy is not enabled in your community. Ask your community admin to enable this.` });
         }
 
-        const civilianId = await resolveCivilianId(client, userId, communityId, explicitId);
+        const { civilianId, civilian, message } = await resolveCivilian(client, userId, communityId, explicitId);
         if (!civilianId) {
-          return interaction.editOriginal({ content: `No civilian selected. Run \`/set-active-civilian\` or pass \`civilian:\` on this command.` });
+          return interaction.editOriginal({ content: message || `No civilian selected. Run \`/set-active-civilian\` or pass \`civilian:\` on this command.` });
         }
+        const civName = civilianName(civilian);
 
-        const [wallet, activeSession, civName] = await Promise.all([
-          apiRequest(client, 'GET', `/api/v2/economy/wallet/${civilianId}`),
+        const [wallet, activeSession] = await Promise.all([
+          apiRequest(client, 'GET', `/api/v2/economy/wallet/${civilianId}?userId=${encodeURIComponent(userId)}`),
           apiRequest(client, 'GET', `/api/v2/economy/session/active?civilianId=${encodeURIComponent(civilianId)}`).catch(() => null),
-          lookupCivilianName(client, civilianId),
         ]);
 
         const recent = wallet.recentInbox || [];

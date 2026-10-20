@@ -31,6 +31,11 @@ function jsonResponse(status, body) {
 beforeEach(() => {
   calls = [];
   routes = [];
+  // The caller's own civilian, in their active community.
+  route('GET', `/api/v1/civilian/${CIV_ID}`, 200, {
+    _id: CIV_ID,
+    civilian: { firstName: 'Test', lastName: 'Dude', userID: USER_ID, activeCommunityID: COMMUNITY_ID },
+  });
   global.fetch = async (url, opts) => {
     const path = url.replace('http://api.test', '');
     const call = { method: opts.method, path, body: opts.body ? JSON.parse(opts.body) : undefined };

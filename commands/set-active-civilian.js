@@ -6,7 +6,10 @@ const {
   getFocusedOption,
   civilianAutocomplete,
   setActiveCivilianId,
-  lookupCivilianName,
+  fetchCivilian,
+  isOwnCivilianInCommunity,
+  civilianName,
+  NOT_YOUR_CIVILIAN_MESSAGE,
 } = require('../util/economy');
 
 module.exports = {
@@ -69,8 +72,12 @@ module.exports = {
       await interaction.defer();
 
       try {
+        const civ = await fetchCivilian(client, civilianId);
+        if (!isOwnCivilianInCommunity(civ, userId, communityId)) {
+          return interaction.editOriginal({ content: NOT_YOUR_CIVILIAN_MESSAGE });
+        }
         await setActiveCivilianId(client, userId, communityId, civilianId);
-        const civName = (await lookupCivilianName(client, civilianId)) || 'Unknown';
+        const civName = civilianName(civ);
 
         const embed = new EmbedBuilder()
           .setColor('#38bdf8')

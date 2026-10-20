@@ -69,6 +69,7 @@ module.exports = {
         try {
           const choices = await fetchInboxChoices(
             client,
+            userId,
             civilianId,
             communityId,
             focused.value,

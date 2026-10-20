@@ -8,6 +8,7 @@ const {
   getFocusedOption,
   civilianAutocomplete,
   communityCivilianAutocomplete,
+  resolveCivilian,
   resolveCivilianId,
   lookupCivilianName,
   isCommunityEconomyEnabled,
@@ -117,7 +118,7 @@ module.exports = {
         // Resolve the sender civilian so we can exclude them from the
         // recipient picker (matches the server-side self-send guard).
         const explicitFrom = (findOption(interaction.data.options, 'from') || {}).value || '';
-        const senderCivId = await resolveCivilianId(client, userId, communityId, explicitFrom).catch(() => null);
+        const senderCivId = await resolveCivilianId(client, userId, communityId, explicitFrom);
         try {
           const choices = await communityCivilianAutocomplete(client, communityId, focused.value, senderCivId);
           return interaction.respond(choices);
@@ -168,9 +169,9 @@ module.exports = {
           return interaction.editOriginal({ content: `Economy is not enabled in your community. Ask your community admin to enable this.` });
         }
 
-        const fromCivilianId = await resolveCivilianId(client, userId, communityId, explicitFrom);
+        const { civilianId: fromCivilianId, message } = await resolveCivilian(client, userId, communityId, explicitFrom);
         if (!fromCivilianId)
-          return interaction.editOriginal({ content: `No civilian selected. Run \`/set-active-civilian\` or pass \`from:\` on this command.` });
+          return interaction.editOriginal({ content: message || `No civilian selected. Run \`/set-active-civilian\` or pass \`from:\` on this command.` });
         if (fromCivilianId === recipientId)
           return interaction.editOriginal({ content: `You can't send money to yourself.` });
 

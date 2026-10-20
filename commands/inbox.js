@@ -8,8 +8,8 @@ const {
   findOption,
   getFocusedOption,
   civilianAutocomplete,
-  resolveCivilianId,
-  lookupCivilianName,
+  resolveCivilian,
+  civilianName,
   formatInboxItemLabel,
 } = require('../util/economy');
 
@@ -92,18 +92,16 @@ module.exports = {
 
       await interaction.defer();
 
-      const civilianId = await resolveCivilianId(client, userId, communityId, explicitId);
+      const { civilianId, civilian, message } = await resolveCivilian(client, userId, communityId, explicitId);
       if (!civilianId) {
-        return interaction.editOriginal({ content: `No civilian selected. Run \`/set-active-civilian\` or pass \`civilian:\` on this command.` });
+        return interaction.editOriginal({ content: message || `No civilian selected. Run \`/set-active-civilian\` or pass \`civilian:\` on this command.` });
       }
+      const civName = civilianName(civilian);
 
       try {
-        const path = `/api/v2/economy/inbox?civilianId=${encodeURIComponent(civilianId)}&communityId=${encodeURIComponent(communityId)}&limit=25` +
+        const path = `/api/v2/economy/inbox?userId=${encodeURIComponent(userId)}&civilianId=${encodeURIComponent(civilianId)}&communityId=${encodeURIComponent(communityId)}&limit=25` +
           (status === 'all' ? '' : `&status=${encodeURIComponent(status)}`);
-        const [res, civName] = await Promise.all([
-          apiRequest(client, 'GET', path),
-          lookupCivilianName(client, civilianId),
-        ]);
+        const res = await apiRequest(client, 'GET', path);
         const items = (res && res.data) || [];
 
         if (items.length === 0) {
